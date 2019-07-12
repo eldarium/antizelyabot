@@ -33,13 +33,13 @@ namespace ZelyaDushitelBot
             _client.OnUpdate += OnUpdate;
             _client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
             Console.Read();
-            File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join(Environment.NewLine, BannedAuthors.ToArray()));
+            File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
         }
 
         static async void UpdateAuthors()
         {
             var text = await File.ReadAllTextAsync(AppContext.BaseDirectory + "authors.txt");
-            foreach (var item in text.Split(Environment.NewLine).ToList())
+            foreach (var item in text.Split("\r\n").ToList())
             {
                 BannedAuthors.Add(item);
             }
@@ -72,11 +72,14 @@ namespace ZelyaDushitelBot
                 await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
                 return;
             }
-
-            if (e.Message.Type == MessageType.Sticker && e.Message.Sticker != null &&
-                e.Message.Sticker.SetName == "SharijNeGonit")
+            if (e.Message.Type == MessageType.Sticker && e.Message.Sticker != null)
             {
-                await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+                Console.WriteLine(e.Message.From.Username + ": [sticker] " + e.Message.Sticker.SetName);
+
+                if ((e.Message.Sticker.SetName == "SharijNeGonit" || e.Message.Sticker.SetName == "ShariyFunsMemes"))
+                {
+                    await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+                }
             }
             if (string.IsNullOrEmpty(e.Message.Text)) return;
             Console.WriteLine(e.Message.From.Username + ": " + e.Message.Text);
