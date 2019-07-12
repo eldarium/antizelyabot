@@ -1,43 +1,45 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using Telegram.Bot;
 using Telegram.Bot.Args;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using YoutubeExplode;
+using File = System.IO.File;
 
 namespace ZelyaDushitelBot
 {
     class Program
     {
-        const string token = "559676146:AAHaP5_hctycQiB-73KR8PKNlMueicHRdW4";
-        static Regex youtubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled);
-        static YoutubeClient youtubeClient = new YoutubeClient();
-        static ITelegramBotClient client;
-        static ConcurrentBag<string> BannedAuthors;
-        static string lastAuthor = "";
+        const string Token = "815055674:AAEm2i4YGfkqNsaUmwGh54NAyy_4SpOCyGY";
+        static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
+        static readonly YoutubeClient YoutubeClient = new YoutubeClient();
+        static ITelegramBotClient _client;
+        static readonly ConcurrentBag<string> BannedAuthors = new ConcurrentBag<string>();
+        static string _lastAuthor = "";
+        private static int _lastNewAuthorMessageId = -1;
+        private static int _vidosNumber = 0;
         static void Main(string[] args)
         {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("Hello World!");
-            BannedAuthors = new ConcurrentBag<string>();
             UpdateAuthors();
-            client = new TelegramBotClient(token);
-            client.OnMessage += OnMessage;
-            client.OnUpdate += OnUpdate;
-            client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
+            _client = new TelegramBotClient(Token);
+            _client.OnMessage += OnMessage;
+            _client.OnUpdate += OnUpdate;
+            _client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
             Console.Read();
-            File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join('\n', BannedAuthors.ToArray()));
+            File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join(Environment.NewLine, BannedAuthors.ToArray()));
         }
 
         static async void UpdateAuthors()
         {
             var text = await File.ReadAllTextAsync(AppContext.BaseDirectory + "authors.txt");
-            foreach (var item in text.Split('\n').ToList())
+            foreach (var item in text.Split(Environment.NewLine).ToList())
             {
                 BannedAuthors.Add(item);
             }
@@ -49,10 +51,12 @@ namespace ZelyaDushitelBot
             {
                 if (e.Update.EditedMessage.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
                 {
-                    var isBanned = await FindYoutube(e.Update.EditedMessage.Text);
+                    var isBanned = await FindYoutube(e.Update.EditedMessage);
                     if (isBanned)
                     {
-                        await client.DeleteMessageAsync(e.Update.EditedMessage.Chat.Id, e.Update.EditedMessage.MessageId);
+                        _vidosNumber++;
+                        if (_vidosNumber > 1)
+                            await _client.DeleteMessageAsync(e.Update.EditedMessage.Chat.Id, e.Update.EditedMessage.MessageId);
                     }
                 }
             }
@@ -60,40 +64,60 @@ namespace ZelyaDushitelBot
 
         static async void OnMessage(object sender, MessageEventArgs e)
         {
+            if ((e.Message.ForwardFromChat != null || (e.Message.Type == MessageType.Video)) &&
+                  e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
+            {
+                if (e.Message.Type == MessageType.Video)
+                    _vidosNumber++;
+                await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+                return;
+            }
+
+            if (e.Message.Type == MessageType.Sticker && e.Message.Sticker != null &&
+                e.Message.Sticker.SetName == "SharijNeGonit")
+            {
+                await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+            }
             if (string.IsNullOrEmpty(e.Message.Text)) return;
             Console.WriteLine(e.Message.From.Username + ": " + e.Message.Text);
             if (e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
             {
-                var isBanned = await FindYoutube(e.Message.Text);
+                var isBanned = await FindYoutube(e.Message);
                 if (isBanned)
                 {
-                    await client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+                    _vidosNumber++;
+                    if (_vidosNumber > 1)
+                        await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+                    return;
                 }
-                return;
             }
             if (e.Message.From.Username.Contains("Eldarium", StringComparison.OrdinalIgnoreCase))
             {
                 switch (e.Message.Text)
                 {
                     case "/command1":
-                    case "/command1@EldariumBot":
+                    case "/command1@PolitikaDushitelBot":
                         // add last video's author to banned authors
-                        if (!string.IsNullOrEmpty(lastAuthor))
-                            BannedAuthors.Add(lastAuthor);
+                        if (!string.IsNullOrEmpty(_lastAuthor))
+                        {
+                            BannedAuthors.Add(_lastAuthor);
+                            await _client.DeleteMessageAsync(e.Message.Chat.Id, _lastNewAuthorMessageId);
+                        }
                         break;
                     case "/command2":
-                    case "/command2@EldariumBot":
+                    case "/command2@PolitikaDushitelBot":
                         // forgot lulw
+                        await _client.SendTextMessageAsync(e.Message.Chat.Id, "я короче придумал фичу но пока писал остальной код забыл ее хдддд");
                         break;
                 }
             }
         }
 
-        static async Task<bool> FindYoutube(string text)
+        static async Task<bool> FindYoutube(Message message)
         {
-            if (youtubeRegex.IsMatch(text))
+            if (YoutubeRegex.IsMatch(message.Text))
             {
-                var url = youtubeRegex.Matches(text)[0].Value.Trim('/');
+                var url = YoutubeRegex.Matches(message.Text)[0].Value.Trim('/');
                 Uri uri = new Uri("https://" + url);
                 string id = "";
                 var q = HttpUtility.ParseQueryString(uri.Query);
@@ -105,9 +129,10 @@ namespace ZelyaDushitelBot
                 {
                     id = uri.Segments.Last();
                 }
-                var videoInfo = await youtubeClient.GetVideoAsync(id);
+                var videoInfo = await YoutubeClient.GetVideoAsync(id);
                 var author = videoInfo.Author;
-                lastAuthor = author;
+                _lastAuthor = author;
+                _lastNewAuthorMessageId = message.MessageId;
                 var isBanned = BannedAuthors.Contains(author);
                 Console.WriteLine($"{author} @ {DateTime.Now} - {isBanned}");
                 return isBanned;
