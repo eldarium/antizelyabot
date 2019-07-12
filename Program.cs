@@ -23,54 +23,80 @@ namespace ZelyaDushitelBot
         static string _lastAuthor = "";
         private static int _lastNewAuthorMessageId = -1;
         private static int _vidosNumber = 0;
+        private static DateTime _runDate = DateTime.Now;
         static void Main(string[] args)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("Hello World!");
             UpdateAuthors();
+            GetLastDate();
             _client = new TelegramBotClient(Token);
             _client.OnMessage += OnMessage;
-            _client.OnUpdate += OnUpdate;
+            _client.OnMessageEdited += OnMessageEdited;
             _client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
             Console.Read();
             File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
         }
 
-        static async void UpdateAuthors()
+        static async void AddOffenceAndRemove(Message message)
         {
-            var text = await File.ReadAllTextAsync(AppContext.BaseDirectory + "authors.txt");
-            foreach (var item in text.Split("\r\n").ToList())
+            if (DateTime.Now.Date > _runDate.Date)
+            {
+                _vidosNumber = 0;
+                _runDate = DateTime.Now;
+            }
+            _vidosNumber++;
+            if (_vidosNumber > 1)
+            {
+                if (_vidosNumber == 2)
+                    await File.WriteAllTextAsync(AppContext.BaseDirectory + "date.txt", DateTime.Now.ToString());
+                await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+            }
+        }
+
+        static void UpdateAuthors()
+        {
+            var text = File.ReadAllText(AppContext.BaseDirectory + "authors.txt");
+            foreach (var item in text.Split(Environment.NewLine).ToList())
             {
                 BannedAuthors.Add(item);
             }
         }
 
-        static async void OnUpdate(object sender, UpdateEventArgs e)
+        static async void GetLastDate()
         {
-            if (e.Update.Type == UpdateType.EditedMessage)
+            if (!File.Exists(AppContext.BaseDirectory + "date.txt"))
+                await File.WriteAllTextAsync(AppContext.BaseDirectory + "date.txt", DateTime.Now.ToString());
+            var date = await File.ReadAllTextAsync(AppContext.BaseDirectory + "date.txt");
+            DateTime datetime = DateTime.Parse(date);
+            if (datetime.Date == DateTime.Now.Date)
+                _vidosNumber = 1;
+        }
+
+        static async void OnMessageEdited(object sender, MessageEventArgs e)
+        {
+            if (e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
             {
-                if (e.Update.EditedMessage.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
+                var isBanned = await FindYoutube(e.Message);
+                if (isBanned)
                 {
-                    var isBanned = await FindYoutube(e.Update.EditedMessage);
-                    if (isBanned)
-                    {
-                        _vidosNumber++;
-                        if (_vidosNumber > 1)
-                            await _client.DeleteMessageAsync(e.Update.EditedMessage.Chat.Id, e.Update.EditedMessage.MessageId);
-                    }
+                    AddOffenceAndRemove(e.Message);
                 }
             }
         }
 
         static async void OnMessage(object sender, MessageEventArgs e)
         {
-            if ((e.Message.ForwardFromChat != null || (e.Message.Type == MessageType.Video)) &&
-                  e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
+            if (e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
             {
                 if (e.Message.Type == MessageType.Video)
-                    _vidosNumber++;
-                await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
-                return;
+                    AddOffenceAndRemove(e.Message);
+                Chat probableChat;
+                if ((probableChat = e.Message.ForwardFromChat) != null)
+                {
+                    if (probableChat.Title.Contains("шари", StringComparison.InvariantCultureIgnoreCase))
+                        AddOffenceAndRemove(e.Message);
+                }
             }
             if (e.Message.Type == MessageType.Sticker && e.Message.Sticker != null)
             {
@@ -88,9 +114,7 @@ namespace ZelyaDushitelBot
                 var isBanned = await FindYoutube(e.Message);
                 if (isBanned)
                 {
-                    _vidosNumber++;
-                    if (_vidosNumber > 1)
-                        await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+                    AddOffenceAndRemove(e.Message);
                     return;
                 }
             }
