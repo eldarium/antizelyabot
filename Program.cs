@@ -15,7 +15,7 @@ namespace ZelyaDushitelBot
 {
     class Program
     {
-        const string Token = "815055674:AAEm2i4YGfkqNsaUmwGh54NAyy_4SpOCyGY";
+        static string Token = "";
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
         static readonly YoutubeClient YoutubeClient = new YoutubeClient();
         static ITelegramBotClient _client;
@@ -30,6 +30,7 @@ namespace ZelyaDushitelBot
             Console.WriteLine("Hello World!");
             UpdateAuthors();
             GetLastDate();
+            Token = File.ReadAllText(AppContext.BaseDirectory + "token").Trim();
             _client = new TelegramBotClient(Token);
             _client.OnMessage += OnMessage;
             _client.OnMessageEdited += OnMessageEdited;
