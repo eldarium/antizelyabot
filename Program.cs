@@ -20,8 +20,11 @@ namespace ZelyaDushitelBot
         static readonly YoutubeClient YoutubeClient = new YoutubeClient();
         static ITelegramBotClient _client;
         static readonly ConcurrentBag<string> BannedAuthors = new ConcurrentBag<string>();
+        static readonly ConcurrentBag<long> BannedChannels = new ConcurrentBag<long>();
         static string _lastAuthor = "";
         private static int _lastNewAuthorMessageId = -1;
+        private static int _lastNewChannedMessageId = -1;
+        private static long _lastChannelId = -1;
         private static int _vidosNumber = 0;
         private static DateTime _runDate = DateTime.Now;
         static void Main(string[] args)
@@ -29,6 +32,7 @@ namespace ZelyaDushitelBot
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("Hello World!");
             UpdateAuthors();
+            UpdateChannels();
             GetLastDate();
             Token = File.ReadAllText(AppContext.BaseDirectory + "token").Trim();
             _client = new TelegramBotClient(Token);
@@ -37,6 +41,7 @@ namespace ZelyaDushitelBot
             _client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
             Console.Read();
             File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
+            File.WriteAllText(AppContext.BaseDirectory + "channels.txt", string.Join("\r\n", BannedChannels.ToArray()));
         }
 
         static async void AddOffenceAndRemove(Message message)
@@ -53,6 +58,17 @@ namespace ZelyaDushitelBot
                     await File.WriteAllTextAsync(AppContext.BaseDirectory + "date.txt", DateTime.Now.ToString());
                 await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
             }
+        }
+
+        static void UpdateChannels()
+        {
+            var text = File.ReadAllText(AppContext.BaseDirectory + "channels.txt");
+            foreach (var item in text.Split(Environment.NewLine).ToList())
+            {
+                if (!string.IsNullOrEmpty(item))
+                    BannedChannels.Add(long.Parse(item));
+            }
+
         }
 
         static void UpdateAuthors()
@@ -95,8 +111,10 @@ namespace ZelyaDushitelBot
                 Chat probableChat;
                 if ((probableChat = e.Message.ForwardFromChat) != null)
                 {
-                    if (probableChat.Title.Contains("шари", StringComparison.InvariantCultureIgnoreCase))
+                    if (BannedChannels.Contains(probableChat.Id))
                         AddOffenceAndRemove(e.Message);
+                    _lastChannelId = probableChat.Id;
+                    _lastNewChannedMessageId = e.Message.MessageId;
                 }
             }
             if (e.Message.Type == MessageType.Sticker && e.Message.Sticker != null)
@@ -134,8 +152,12 @@ namespace ZelyaDushitelBot
                         break;
                     case "/command2":
                     case "/command2@PolitikaDushitelBot":
-                        // forgot lulw
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id, "я короче придумал фичу но пока писал остальной код забыл ее хдддд");
+                        // add last channel to banned channels
+                        if (_lastChannelId != -1)
+                        {
+                            BannedChannels.Add(_lastChannelId);
+                            await _client.DeleteMessageAsync(e.Message.Chat.Id, _lastNewChannedMessageId);
+                        }
                         break;
                 }
             }
