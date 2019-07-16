@@ -194,7 +194,8 @@ namespace ZelyaDushitelBot
                     videoInfo = await YoutubeClient.GetVideoAsync(id);
                 } catch(Exception e)
                 {
-                    FailedVideos.GetOrAdd(id, $"at {DateTime.Now}\r\n" +
+                    FailedVideos.GetOrAdd(id, $"message from {message.From} id {message.MessageId}" +
+                                              $"at {DateTime.Now}\r\n" +
                                               $"exception {e}\r\n" +
                                               $"{e.StackTrace}");
                 }
