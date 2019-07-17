@@ -159,6 +159,15 @@ namespace ZelyaDushitelBot
                             await _client.DeleteMessageAsync(e.Message.Chat.Id, _lastNewChannedMessageId);
                         }
                         break;
+                    case "/command3":
+                    case "/command3@PolitikaDushitelBot":
+                        if (_vidosNumber == 0)
+                        {
+                            _vidosNumber++;
+                            await _client.SendTextMessageAsync(e.Message.Chat.Id,
+                                "@alexvojander первая за сегодня добавлена рофланЕбало");
+                        }
+                        break;
                 }
             }
         }
