@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -27,8 +28,11 @@ namespace ZelyaDushitelBot
         private static long _lastChannelId = -1;
         private static int _vidosNumber = 0;
         private static DateTime _runDate = DateTime.Now;
+        static bool isTesting;
+        private static ConcurrentDictionary<string, string> FailedVideos = new ConcurrentDictionary<string,string>();
         static void Main(string[] args)
         {
+                isTesting = args.Length == 1 && args[0] == "/t";
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("Hello World!");
             UpdateAuthors();
@@ -42,6 +46,9 @@ namespace ZelyaDushitelBot
             Console.Read();
             File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
             File.WriteAllText(AppContext.BaseDirectory + "channels.txt", string.Join("\r\n", BannedChannels.ToArray()));
+            File.WriteAllText(AppContext.BaseDirectory + "failed_videos.txt", string.Join("\r\n\r\n",
+                FailedVideos.Select(a=>$"{a.Key} info:\r\n{a.Value}").ToArray())
+            );
         }
 
         static async void AddOffenceAndRemove(Message message)
@@ -188,13 +195,28 @@ namespace ZelyaDushitelBot
                 {
                     id = uri.Segments.Last();
                 }
-                var videoInfo = await YoutubeClient.GetVideoAsync(id);
+                YoutubeExplode.Models.Video videoInfo = new YoutubeExplode.Models.Video(
+                    "", "", new DateTimeOffset(), "", "", new YoutubeExplode.Models.ThumbnailSet(""),
+                    TimeSpan.FromSeconds(0), new List<string>(), new YoutubeExplode.Models.Statistics(0, 0, 0));
+                try
+                {
+                    videoInfo = await YoutubeClient.GetVideoAsync(id);
+                } catch(Exception e)
+                {
+                    FailedVideos.GetOrAdd(id, $"message from {message.From} id {message.MessageId}" +
+                                              $"at {DateTime.Now}\r\n" +
+                                              $"exception {e}\r\n" +
+                                              $"{e.StackTrace}");
+                }
                 var author = videoInfo.Author;
-                _lastAuthor = author;
-                _lastNewAuthorMessageId = message.MessageId;
-                var isBanned = BannedAuthors.Contains(author);
-                Console.WriteLine($"{author} @ {DateTime.Now} - {isBanned}");
-                return isBanned;
+                if (!string.IsNullOrEmpty(author))
+                {
+                    _lastAuthor = author;
+                    _lastNewAuthorMessageId = message.MessageId;
+                    var isBanned = BannedAuthors.Contains(author);
+                    Console.WriteLine($"{author} @ {DateTime.Now} - {isBanned}");
+                    return isBanned;
+                }
             }
             return false;
         }
