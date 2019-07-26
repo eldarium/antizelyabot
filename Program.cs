@@ -128,7 +128,7 @@ namespace ZelyaDushitelBot
             {
                 Console.WriteLine(e.Message.From.Username + ": [sticker] " + e.Message.Sticker.SetName);
 
-                if ((e.Message.Sticker.SetName == "SharijNeGonit" || e.Message.Sticker.SetName == "ShariyFunsMemes"))
+                if ((e.Message.Sticker.SetName.Contains("Sharij", StringComparison.OrdinalIgnoreCase) || e.Message.Sticker.SetName.Contains("Shariy", StringComparison.OrdinalIgnoreCase)))
                 {
                     await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
                 }
@@ -175,6 +175,11 @@ namespace ZelyaDushitelBot
                                 "@alexvojander первая за сегодня добавлена рофланЕбало");
                         }
                         break;
+					case "/command4":
+					case "/command4@PolitikaDushitelBot":
+						await _client.SendTextMessageAsync(e.Message.Chat.Id,
+							$"эта команда подкидывает монетку - результат {new Random().Next(0,2) == 1}");
+						break;
                 }
             }
         }
@@ -203,6 +208,7 @@ namespace ZelyaDushitelBot
                     videoInfo = await YoutubeClient.GetVideoAsync(id);
                 } catch(Exception e)
                 {
+					Console.WriteLine($"Video {id} failed");
                     FailedVideos.GetOrAdd(id, $"message from {message.From} id {message.MessageId}" +
                                               $"at {DateTime.Now}\r\n" +
                                               $"exception {e}\r\n" +
