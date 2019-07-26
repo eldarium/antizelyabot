@@ -29,10 +29,10 @@ namespace ZelyaDushitelBot
         private static int _vidosNumber = 0;
         private static DateTime _runDate = DateTime.Now;
         static bool isTesting;
-        private static ConcurrentDictionary<string, string> FailedVideos = new ConcurrentDictionary<string,string>();
+        private static ConcurrentDictionary<string, string> FailedVideos = new ConcurrentDictionary<string, string>();
         static void Main(string[] args)
         {
-                isTesting = args.Length == 1 && args[0] == "/t";
+            isTesting = args.Length == 1 && args[0] == "/t";
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("Hello World!");
             UpdateAuthors();
@@ -47,7 +47,7 @@ namespace ZelyaDushitelBot
             File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
             File.WriteAllText(AppContext.BaseDirectory + "channels.txt", string.Join("\r\n", BannedChannels.ToArray()));
             File.WriteAllText(AppContext.BaseDirectory + "failed_videos.txt", string.Join("\r\n\r\n",
-                FailedVideos.Select(a=>$"{a.Key} info:\r\n{a.Value}").ToArray())
+                FailedVideos.Select(a => $"{a.Key} info:\r\n{a.Value}").ToArray())
             );
         }
 
@@ -63,7 +63,8 @@ namespace ZelyaDushitelBot
             {
                 if (_vidosNumber == 2)
                     await File.WriteAllTextAsync(AppContext.BaseDirectory + "date.txt", DateTime.Now.ToString());
-                await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                await _client.SendStickerAsync(message.Chat.Id, "CAADAgADBAAD9SbqFq83NbkmenTRAg", replyToMessageId: message.MessageId);
+                //await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
             }
         }
 
@@ -175,11 +176,11 @@ namespace ZelyaDushitelBot
                                 "@alexvojander первая за сегодня добавлена рофланЕбало");
                         }
                         break;
-					case "/command4":
-					case "/command4@PolitikaDushitelBot":
-						await _client.SendTextMessageAsync(e.Message.Chat.Id,
-							$"эта команда подкидывает монетку - результат {new Random().Next(0,2) == 1}");
-						break;
+                    case "/command4":
+                    case "/command4@PolitikaDushitelBot":
+                        await _client.SendTextMessageAsync(e.Message.Chat.Id,
+                            $"эта команда подкидывает монетку - результат {new Random().Next(0, 2) == 1}");
+                        break;
                 }
             }
         }
@@ -206,9 +207,10 @@ namespace ZelyaDushitelBot
                 try
                 {
                     videoInfo = await YoutubeClient.GetVideoAsync(id);
-                } catch(Exception e)
+                }
+                catch (Exception e)
                 {
-					Console.WriteLine($"Video {id} failed");
+                    Console.WriteLine($"Video {id} failed");
                     FailedVideos.GetOrAdd(id, $"message from {message.From} id {message.MessageId}" +
                                               $"at {DateTime.Now}\r\n" +
                                               $"exception {e}\r\n" +
