@@ -64,7 +64,7 @@ namespace ZelyaDushitelBot
                 if (_vidosNumber == 2)
                     await File.WriteAllTextAsync(AppContext.BaseDirectory + "date.txt", DateTime.Now.ToString());
                 await _client.SendStickerAsync(message.Chat.Id, "CAADAgADBAAD9SbqFq83NbkmenTRAg", replyToMessageId: message.MessageId);
-                //await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
             }
         }
 
