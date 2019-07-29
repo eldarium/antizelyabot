@@ -59,11 +59,11 @@ namespace ZelyaDushitelBot
                 _runDate = DateTime.Now;
             }
             _vidosNumber++;
+            await _client.SendStickerAsync(message.Chat.Id, "CAADAgADBAAD9SbqFq83NbkmenTRAg", replyToMessageId: message.MessageId);    
             if (_vidosNumber > 1)
             {
                 if (_vidosNumber == 2)
                     await File.WriteAllTextAsync(AppContext.BaseDirectory + "date.txt", DateTime.Now.ToString());
-                await _client.SendStickerAsync(message.Chat.Id, "CAADAgADBAAD9SbqFq83NbkmenTRAg", replyToMessageId: message.MessageId);
                 await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
             }
         }
@@ -180,6 +180,10 @@ namespace ZelyaDushitelBot
                     case "/command4@PolitikaDushitelBot":
                         await _client.SendTextMessageAsync(e.Message.Chat.Id,
                             $"эта команда подкидывает монетку - результат {new Random().Next(0, 2) == 1}");
+                        break;
+                    case "test":
+                        System.Threading.Timer t1 = new System.Threading.Timer(async state=>{await _client.SendTextMessageAsync(e.Message.Chat.Id,
+                            $"hello!");}, null, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(-1));
                         break;
                 }
             }
