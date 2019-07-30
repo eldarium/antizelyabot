@@ -2,9 +2,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
+using System.Xml;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types;
@@ -109,6 +111,26 @@ namespace ZelyaDushitelBot
                 }
             }
         }
+        
+        static async void GetExchangeRates(Message m){
+            HttpClient client = new HttpClient();
+            client.BaseAddress = new Uri("https://api.privatbank.ua/p24api/exchange_rates");
+            var v = await client.GetAsync($"?date={DateTime.Now.Date:dd.MM.yyyy}");
+            if (v.IsSuccessStatusCode)
+            {
+                var p = await v.Content.ReadAsStringAsync();
+                XmlDocument doc = new XmlDocument();
+                doc.LoadXml(p);
+                string xpath = "exchangerates/exchangerate";
+                var nodex = doc.SelectNodes(xpath);
+                for (int i = 0; i < nodex.Count; i++)
+                {
+                    if (nodex[i].Attributes["currency"] == null || nodex[i].Attributes["currency"].Value != "USD") continue;
+                    await _client.SendTextMessageAsync(m.Chat.Id, $"USD (приват)\nПродажа {Math.Round(decimal.Parse(nodex[i].Attributes["saleRate"].Value.Replace('.',',')), decimals:3)}\nПокупка {Math.Round(decimal.Parse(nodex[i].Attributes["purchaseRate"].Value.Replace('.',',')), decimals:3)}");
+                    break;
+                }
+            }
+        }
 
         static async void OnMessage(object sender, MessageEventArgs e)
         {
@@ -145,6 +167,18 @@ namespace ZelyaDushitelBot
                     return;
                 }
             }
+            switch (e.Message.Text){
+                    case "че с курсом":
+                    case "чё с курсом":
+                    case "курс":
+                        GetExchangeRates(e.Message);
+                        break;     
+                    case "/command4":
+                    case "/command4@PolitikaDushitelBot":
+                        await _client.SendTextMessageAsync(e.Message.Chat.Id,
+                            $"эта команда подкидывает монетку - результат {new Random().Next(0, 2) == 1}");
+                        break;           
+            }
             if (e.Message.From.Username.Contains("Eldarium", StringComparison.OrdinalIgnoreCase))
             {
                 switch (e.Message.Text)
@@ -175,11 +209,6 @@ namespace ZelyaDushitelBot
                             await _client.SendTextMessageAsync(e.Message.Chat.Id,
                                 "@alexvojander первая за сегодня добавлена рофланЕбало");
                         }
-                        break;
-                    case "/command4":
-                    case "/command4@PolitikaDushitelBot":
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id,
-                            $"эта команда подкидывает монетку - результат {new Random().Next(0, 2) == 1}");
                         break;
                     case "test":
                         System.Threading.Timer t1 = new System.Threading.Timer(async state=>{await _client.SendTextMessageAsync(e.Message.Chat.Id,
