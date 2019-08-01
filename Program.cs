@@ -114,21 +114,22 @@ namespace ZelyaDushitelBot
         
         static async void GetExchangeRates(Message m){
             HttpClient client = new HttpClient();
-            client.BaseAddress = new Uri("https://api.privatbank.ua/p24api/exchange_rates");
-            var v = await client.GetAsync($"?date={DateTime.Now.Date:dd.MM.yyyy}");
+            client.BaseAddress = new Uri("https://api.privatbank.ua/p24api/pubinfo?exchange&coursid=5");
+            var v = await client.GetAsync("");
             if (v.IsSuccessStatusCode)
             {
                 var p = await v.Content.ReadAsStringAsync();
                 XmlDocument doc = new XmlDocument();
                 doc.LoadXml(p);
-                string xpath = "exchangerates/exchangerate";
+                string xpath = "exchangerates/row/exchangerate";
                 var nodex = doc.SelectNodes(xpath);
                 for (int i = 0; i < nodex.Count; i++)
                 {
-                    if (nodex[i].Attributes["currency"] == null || nodex[i].Attributes["currency"].Value != "USD") continue;
-                    await _client.SendTextMessageAsync(m.Chat.Id, $"USD (приват)\nПродажа {Math.Round(decimal.Parse(nodex[i].Attributes["saleRate"].Value.Replace('.',',')), decimals:3)}\nПокупка {Math.Round(decimal.Parse(nodex[i].Attributes["purchaseRate"].Value.Replace('.',',')), decimals:3)}");
-                    break;
+                    if (nodex[i].Attributes["ccy"] == null || nodex[i].Attributes["ccy"].Value != "USD") continue;
+                    await _client.SendTextMessageAsync(m.Chat.Id, $"USD (приват)\nПродажа {Math.Round(decimal.Parse(nodex[i].Attributes["buy"].Value.Replace('.',',')), decimals:3)}\nПокупка {Math.Round(decimal.Parse(nodex[i].Attributes["sale"].Value.Replace('.',',')), decimals:3)}");
+                    return;
                 }
+                await _client.SendTextMessageAsync(m.Chat.Id, "Еще (?) нет курса");
             } else{
                 await _client.SendTextMessageAsync(m.Chat.Id, $"Еще нет курса на сегодня (наверное): статус ответа {v.StatusCode}");
             }
@@ -245,7 +246,7 @@ namespace ZelyaDushitelBot
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"Video {id} failed");
+                    Console.WriteLine($"Video {id} failed : {e}");
                     FailedVideos.GetOrAdd(id, $"message from {message.From} id {message.MessageId}" +
                                               $"at {DateTime.Now}\r\n" +
                                               $"exception {e}\r\n" +
