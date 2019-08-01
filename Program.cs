@@ -129,6 +129,8 @@ namespace ZelyaDushitelBot
                     await _client.SendTextMessageAsync(m.Chat.Id, $"USD (приват)\nПродажа {Math.Round(decimal.Parse(nodex[i].Attributes["saleRate"].Value.Replace('.',',')), decimals:3)}\nПокупка {Math.Round(decimal.Parse(nodex[i].Attributes["purchaseRate"].Value.Replace('.',',')), decimals:3)}");
                     break;
                 }
+            } else{
+                await _client.SendTextMessageAsync(m.Chat.Id, $"Еще нет курса на сегодня (наверное): статус ответа {v.StatusCode}");
             }
         }
 
