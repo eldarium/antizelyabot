@@ -19,6 +19,7 @@ namespace ZelyaDushitelBot
     class Program
     {
         static string Token = "";
+        static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
         static readonly YoutubeClient YoutubeClient = new YoutubeClient();
         static ITelegramBotClient _client;
@@ -45,7 +46,7 @@ namespace ZelyaDushitelBot
             _client.OnMessage += OnMessage;
             _client.OnMessageEdited += OnMessageEdited;
             _client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
-            Console.Read();
+            Console.ReadLine();
             File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
             File.WriteAllText(AppContext.BaseDirectory + "channels.txt", string.Join("\r\n", BannedChannels.ToArray()));
             File.WriteAllText(AppContext.BaseDirectory + "failed_videos.txt", string.Join("\r\n\r\n",
@@ -61,7 +62,7 @@ namespace ZelyaDushitelBot
                 _runDate = DateTime.Now;
             }
             _vidosNumber++;
-            await _client.SendStickerAsync(message.Chat.Id, "CAADAgADBAAD9SbqFq83NbkmenTRAg", replyToMessageId: message.MessageId);    
+            await _client.SendStickerAsync(message.Chat.Id, "CAADAgADBAAD9SbqFq83NbkmenTRAg", replyToMessageId: message.MessageId);
             if (_vidosNumber > 1)
             {
                 if (_vidosNumber == 2)
@@ -111,8 +112,9 @@ namespace ZelyaDushitelBot
                 }
             }
         }
-        
-        static async void GetExchangeRates(Message m){
+
+        static async void GetExchangeRates(Message m)
+        {
             HttpClient client = new HttpClient();
             client.BaseAddress = new Uri("https://api.privatbank.ua/p24api/pubinfo?exchange&coursid=5");
             var v = await client.GetAsync("");
@@ -123,14 +125,18 @@ namespace ZelyaDushitelBot
                 doc.LoadXml(p);
                 string xpath = "exchangerates/row/exchangerate";
                 var nodex = doc.SelectNodes(xpath);
+                string rates = "";
                 for (int i = 0; i < nodex.Count; i++)
                 {
-                    if (nodex[i].Attributes["ccy"] == null || nodex[i].Attributes["ccy"].Value != "USD") continue;
-                    await _client.SendTextMessageAsync(m.Chat.Id, $"USD (приват)\nПродажа {Math.Round(decimal.Parse(nodex[i].Attributes["buy"].Value.Replace('.',',')), decimals:3)}\nПокупка {Math.Round(decimal.Parse(nodex[i].Attributes["sale"].Value.Replace('.',',')), decimals:3)}");
-                    return;
+                    if (nodex[i].Attributes["ccy"] == null || nodex[i].Attributes["ccy"].Value == "RUR") continue;
+                    rates += $"{nodex[i].Attributes["ccy"].Value} (приват)\nПродажа {Math.Round(decimal.Parse(nodex[i].Attributes["buy"].Value.Replace('.', ',')), decimals: 3)}\nПокупка {Math.Round(decimal.Parse(nodex[i].Attributes["sale"].Value.Replace('.', ',')), decimals: 3)}";
+                    rates += "\n\n";
                 }
-                await _client.SendTextMessageAsync(m.Chat.Id, "Еще (?) нет курса");
-            } else{
+                await _client.SendTextMessageAsync(m.Chat.Id, rates);
+                return;
+            }
+            else
+            {
                 await _client.SendTextMessageAsync(m.Chat.Id, $"Еще нет курса на сегодня (наверное): статус ответа {v.StatusCode}");
             }
         }
@@ -170,17 +176,23 @@ namespace ZelyaDushitelBot
                     return;
                 }
             }
-            switch (e.Message.Text){
-                    case "че с курсом":
-                    case "чё с курсом":
-                    case "курс":
-                        GetExchangeRates(e.Message);
-                        break;     
-                    case "/command4":
-                    case "/command4@PolitikaDushitelBot":
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id,
-                            $"эта команда подкидывает монетку - результат {new Random().Next(0, 2) == 1}");
-                        break;           
+            var st = e.Message.Text.IndexOf("@PolitikaDushitelBot");
+            if (st >= 0)
+            {
+                var newText = (e.Message.Text.Substring(0, st) + e.Message.Text.Substring(st + "@PolitikaDushitelBot".Length)).Trim();
+                if (RateRegex.IsMatch(newText))
+                {
+                    GetExchangeRates(e.Message);
+                    return;
+                }
+            }
+            switch (e.Message.Text)
+            {
+                case "/command4":
+                case "/command4@PolitikaDushitelBot":
+                    await _client.SendTextMessageAsync(e.Message.Chat.Id,
+                        $"эта команда подкидывает монетку - результат {new Random().Next(0, 2) == 1}");
+                    break;
             }
             if (e.Message.From.Username.Contains("Eldarium", StringComparison.OrdinalIgnoreCase))
             {
@@ -214,8 +226,11 @@ namespace ZelyaDushitelBot
                         }
                         break;
                     case "test":
-                        System.Threading.Timer t1 = new System.Threading.Timer(async state=>{await _client.SendTextMessageAsync(e.Message.Chat.Id,
-                            $"hello!");}, null, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(-1));
+                        System.Threading.Timer t1 = new System.Threading.Timer(async state =>
+                        {
+                            await _client.SendTextMessageAsync(e.Message.Chat.Id,
+$"hello!");
+                        }, null, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(-1));
                         break;
                 }
             }
