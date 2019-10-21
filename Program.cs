@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Unicode;
 using System.Web;
 using System.Xml;
 using Telegram.Bot;
@@ -25,12 +24,11 @@ namespace ZelyaDushitelBot
         static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
         static readonly Regex BotTranslateRegex = new Regex(@"^бот, сколько( сейчас)?( будет)? (\d+.?\d+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly MyHttpHandler MyHttpHandler = new MyHttpHandler(new HttpClientHandler());
-        static readonly YoutubeClient YoutubeClient = new YoutubeClient(/*new HttpClient(MyHttpHandler)*/);
-        static readonly string[] Stickers = new string[]{"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
-                                                         "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
-                                                         "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
-                                                         "CAADAgADCQAD9SbqFsQl4dm30mvRFgQ"};
+        static readonly YoutubeClient YoutubeClient = new YoutubeClient();
+        static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
+                                             "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
+                                             "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
+                                             "CAADAgADCQAD9SbqFsQl4dm30mvRFgQ"};
         static ITelegramBotClient _client;
         static readonly ConcurrentBag<string> BannedAuthors = new ConcurrentBag<string>();
         static readonly ConcurrentBag<long> BannedChannels = new ConcurrentBag<long>();
@@ -40,11 +38,9 @@ namespace ZelyaDushitelBot
         private static long _lastChannelId = -1;
         private static int _vidosNumber = 0;
         private static DateTime _runDate = DateTime.Now;
-        static bool isTesting;
         private static ConcurrentDictionary<string, string> FailedVideos = new ConcurrentDictionary<string, string>();
         static void Main(string[] args)
         {
-            isTesting = args.Length == 1 && args[0] == "/t";
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("Hello World!");
             UpdateAuthors();
@@ -53,7 +49,7 @@ namespace ZelyaDushitelBot
             Token = File.ReadAllText(AppContext.BaseDirectory + "token").Trim();
             _client = new TelegramBotClient(Token);
             _client.OnMessage += OnMessage;
-            _client.OnMessageEdited += OnMessageEdited;
+            _client.OnMessageEdited += OnMessage;// OnMessageEdited;
             _client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
             Console.ReadLine();
             File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
@@ -107,42 +103,16 @@ namespace ZelyaDushitelBot
             if (!File.Exists(AppContext.BaseDirectory + "date.txt"))
                 await File.WriteAllTextAsync(AppContext.BaseDirectory + "date.txt", DateTime.Now.ToString());
             var date = await File.ReadAllTextAsync(AppContext.BaseDirectory + "date.txt");
-            DateTime datetime = DateTime.Parse(date);
+            var datetime = DateTime.Parse(date);
             if (datetime.Date == DateTime.Now.Date)
                 _vidosNumber = 1;
         }
 
-        static async void OnMessageEdited(object sender, MessageEventArgs e)
-        {
-            if (e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
-            {
-                var isBanned = /* await FindYoutube(e.Message) ||*/ e.Message.Entities != null && e.Message.Entities.Any(en => en.Type == MessageEntityType.Url);
-                if (isBanned)
-                {
-                    AddOffence(e.Message);
-                }
-            }
-            var st = e.Message.Text?.IndexOf("@PolitikaDushitelBot") ?? -1;
-            if (st >= 0)
-            {
-                var newText = (e.Message.Text.Replace("@PolitikaDushitelBot", "")).Trim();
-                if (RateRegex.IsMatch(newText))
-                {
-                    GetExchangeRates(e.Message);
-                    return;
-                }
-            }
-            if (RateRegex.IsMatch(e.Message.Text ?? ""))
-            {
-                GetExchangeRates(e.Message);
-                return;
-            }
-        }
-        static private HttpStatusCode _lastStatusCode;
+        private static HttpStatusCode _lastStatusCode;
         static async Task<List<(string, decimal, decimal)>> GetRatesValues()
         {
-            HttpClient client = new HttpClient();
-            List<(string, decimal, decimal)> list = new List<(string, decimal, decimal)>();
+            var client = new HttpClient();
+            var list = new List<(string, decimal, decimal)>();
             client.BaseAddress = new Uri("https://api.privatbank.ua/p24api/pubinfo?exchange&coursid=5");
             HttpResponseMessage v;
             try
@@ -156,16 +126,16 @@ namespace ZelyaDushitelBot
             if (v.IsSuccessStatusCode)
             {
                 var p = await v.Content.ReadAsStringAsync();
-                XmlDocument doc = new XmlDocument();
+                var doc = new XmlDocument();
                 doc.LoadXml(p);
-                string xpath = "exchangerates/row/exchangerate";
+                var xpath = "exchangerates/row/exchangerate";
                 var nodex = doc.SelectNodes(xpath);
-                for (int i = 0; i < nodex.Count; i++)
+                for (var i = 0; i < nodex.Count; i++)
                 {
                     if (nodex[i].Attributes["ccy"] == null || nodex[i].Attributes["ccy"].Value == "RUR") continue;
                     list.Add((nodex[i].Attributes["ccy"].Value,
-                    Math.Round(decimal.Parse(nodex[i].Attributes["buy"].Value.Replace('.', ',')), decimals: 3),
-                    Math.Round(decimal.Parse(nodex[i].Attributes["sale"].Value.Replace('.', ',')), decimals: 3)));
+                    Math.Round(decimal.Parse(nodex[i].Attributes["buy"].Value, new CultureInfo("us-US")), decimals: 3),
+                    Math.Round(decimal.Parse(nodex[i].Attributes["sale"].Value, new CultureInfo("us-US")), decimals: 3)));
                 }
             }
             else
@@ -193,7 +163,7 @@ namespace ZelyaDushitelBot
             if (values.Any())
             {
                 var rates = "";
-                for (int i = 0; i < values.Count; i++)
+                for (var i = 0; i < values.Count; i++)
                 {
                     rates += $"{values[i].Item1} (приват)\nПродажа {values[i].Item2}\nПокупка {values[i].Item3}";
                     rates += "\n\n";
@@ -209,70 +179,60 @@ namespace ZelyaDushitelBot
 
         static async void OnMessage(object sender, MessageEventArgs e)
         {
-            if (e.Message.From.Username?.Contains("alexvojander", StringComparison.OrdinalIgnoreCase)??false)
+            var message = e.Message;
+            if (message.HasAuthor("alexvojander"))
             {
-                if (e.Message.Type == MessageType.Video)
+                if (message.Type == MessageType.Video)
                 {
-                    AddOffence(e.Message);
-                    //Remove(e.Message);
+                    AddOffence(message);
+                    //Remove(message);
                 }
                 Chat probableChat;
-                if ((probableChat = e.Message.ForwardFromChat) != null)
+                if ((probableChat = message.ForwardFromChat) != null)
                 {
                     if (BannedChannels.Contains(probableChat.Id))
                     {
-                        AddOffence(e.Message);
-                        Remove(e.Message);
+                        AddOffence(message);
+                        Remove(message);
                     }
                     _lastChannelId = probableChat.Id;
-                    _lastNewChannedMessageId = e.Message.MessageId;
+                    _lastNewChannedMessageId = message.MessageId;
                 }
             }
-            if (e.Message.Type == MessageType.Sticker && e.Message.Sticker != null)
+            if (message.Type == MessageType.Sticker && message.Sticker != null)
             {
-                Console.WriteLine(e.Message.From.Username + ": [sticker] " + e.Message.Sticker.SetName + $" emoji {e.Message.Sticker.Emoji}" + " file id " + e.Message.Sticker.FileId);
+                Console.WriteLine(message.From.Username + ": [sticker] " + message.Sticker.SetName + $" emoji {message.Sticker.Emoji}" + " file id " + message.Sticker.FileId);
 
-                if (((e.Message.Sticker.SetName?.Contains("Sharij", StringComparison.OrdinalIgnoreCase) ?? false) || (e.Message.Sticker.SetName?.Contains("Shariy", StringComparison.OrdinalIgnoreCase)??false)))
+                if (((message.Sticker.SetName?.Contains("Sharij", StringComparison.OrdinalIgnoreCase) ?? false) || (message.Sticker.SetName?.Contains("Shariy", StringComparison.OrdinalIgnoreCase) ?? false)))
                 {
-                    await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
+                    await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                 }
             }
-            if (string.IsNullOrEmpty(e.Message.Text)) return;
-            Console.WriteLine(e.Message.From.Username + ": " + e.Message.Text);
-            if (e.Message.From.Username?.Contains("alexvojander", StringComparison.OrdinalIgnoreCase)??false)
+            if (string.IsNullOrEmpty(message.Text)) return;
+            Console.WriteLine(message.From.Username + ": " + message.Text);
+            if (message.HasAuthor("alexvojander"))
             {
-                var isBanned = /* await FindYoutube(e.Message) ||*/ e.Message.Entities != null && e.Message.Entities.Any(en => en.Type == MessageEntityType.Url);
+                var isBanned = await FindYoutube(message) || message.Entities != null && message.Entities.Any(en => en.Type == MessageEntityType.Url);
                 if (isBanned)
                 {
-                    AddOffence(e.Message);
-                    //Remove(e.Message);
+                    AddOffence(message);
+                    //Remove(message);
                     return;
                 }
             }
-            var st = e.Message.Text.IndexOf("@PolitikaDushitelBot");
-            if (st >= 0)
+            if (message.HasRegexIgnoreMention(RateRegex))
             {
-                var newText = (e.Message.Text.Replace("@PolitikaDushitelBot", "")).Trim();
-                if (RateRegex.IsMatch(newText))
-                {
-                    GetExchangeRates(e.Message);
-                    return;
-                }
-            }
-            if (RateRegex.IsMatch(e.Message.Text))
-            {
-                GetExchangeRates(e.Message);
+                GetExchangeRates(message);
                 return;
             }
-            if (BotTranslateRegex.IsMatch(e.Message.Text))
+            if (message.HasRegexIgnoreMention(BotTranslateRegex))
             {
                 var values = await GetRatesValues();
-                var match = BotTranslateRegex.Match(e.Message.Text);
-                decimal valueNumber;
-                if (!decimal.TryParse(match.Groups[3].Value, out valueNumber) ||
-                !decimal.TryParse(match.Groups[3].Value.Replace('.',','), out valueNumber))
+                var match = BotTranslateRegex.Match(message.Text);
+                if (!decimal.TryParse(match.Groups[3].Value, out var valueNumber) ||
+                !decimal.TryParse(match.Groups[3].Value.Replace('.', ','), out valueNumber))
                 {
-                    await _client.SendTextMessageAsync(e.Message.Chat.Id,
+                    await _client.SendTextMessageAsync(message.Chat.Id,
                         "не могу понять число");
                     return;
                 }
@@ -280,67 +240,61 @@ namespace ZelyaDushitelBot
                 {
                     if (match.Groups[4].Value.Equals("доллар", StringComparison.InvariantCultureIgnoreCase) || match.Groups[4].Value.Equals("бакс", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        var rate = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} USD\nПродать: {valueNumber * rate.Item2} грн\nКупить: {valueNumber * rate.Item3} грн");
+                        var (_, item2, item3) = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} USD\nПродать: {valueNumber * item2} грн\nКупить: {valueNumber * item3} грн");
                     }
                     if (match.Groups[4].Value.Equals("евр", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        var rate = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} EUR\nПродать: {valueNumber * rate.Item2} грн\nКупить: {valueNumber * rate.Item3} грн");
+                        var (_, item2, item3) = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} EUR\nПродать: {valueNumber * item2} грн\nКупить: {valueNumber * item3} грн");
                     }
                     if (match.Groups[4].Value.Equals("гр", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        var rate1 = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
-                        var rate2 = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} грн\nВ баксах: {Math.Round(valueNumber / rate1.Item3, 2)} USD\nВ евро: {Math.Round(valueNumber / rate2.Item3, 2)} EUR");
+                        var (_, _, item3) = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
+                        var (_, _, item4) = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} грн\nВ баксах: {Math.Round(valueNumber / item3, 2)} USD\nВ евро: {Math.Round(valueNumber / item4, 2)} EUR");
                     }
                     if (match.Groups[4].Value.Equals("бит", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        var rate = values.First(v => v.Item1.Equals("BTC", StringComparison.InvariantCultureIgnoreCase));
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} BTC\nПродать: {valueNumber * rate.Item2} USD\nКупить: {valueNumber * rate.Item3} USD");
+                        var (_, item2, item3) = values.First(v => v.Item1.Equals("BTC", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} BTC\nПродать: {valueNumber * item2} USD\nКупить: {valueNumber * item3} USD");
                     }
                 }
                 catch (OverflowException)
                 {
-                    await _client.SendTextMessageAsync(e.Message.Chat.Id, "не балуйся");
+                    await _client.SendTextMessageAsync(message.Chat.Id, "не балуйся");
                 }
             }
-            switch (e.Message.Text)
+
+            if (message.HasCommand("/command4"))
+                await _client.SendTextMessageAsync(message.Chat.Id,
+                    $"эта команда подкидывает маму зелика - результат {new Random().Next(0, 2) == 1}");
+
+            if (message.HasAuthor("daneldarium"))
             {
-                case "/command4":
-                case "/command4@PolitikaDushitelBot":
-                    await _client.SendTextMessageAsync(e.Message.Chat.Id,
-                        $"эта команда подкидывает маму зелика - результат {new Random().Next(0, 2) == 1}");
-                    break;
-            }
-            if (e.Message.From.Username?.Contains("daneldarium", StringComparison.OrdinalIgnoreCase)??false)
-            {
-                switch (e.Message.Text)
+                if (message.HasCommand("/command1"))
                 {
-                    case "/command1":
-                    case "/command1@PolitikaDushitelBot":
-                        // add last video's author to banned authors
-                        if (!string.IsNullOrEmpty(_lastAuthor))
-                        {
-                            BannedAuthors.Add(_lastAuthor);
-                            await _client.DeleteMessageAsync(e.Message.Chat.Id, _lastNewAuthorMessageId);
-                        }
-                        break;
-                    case "/command2":
-                    case "/command2@PolitikaDushitelBot":
-                        // add last channel to banned channels
-                        if (_lastChannelId != -1)
-                        {
-                            BannedChannels.Add(_lastChannelId);
-                            await _client.DeleteMessageAsync(e.Message.Chat.Id, _lastNewChannedMessageId);
-                        }
-                        break;
-                    case "/command3":
-                    case "/command3@PolitikaDushitelBot":
-                        _vidosNumber++;
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id,
-                            "@alexvojander первая за сегодня добавлена рофланЕбало");
-                        break;
+                    // add last video's author to banned authors
+                    if (!string.IsNullOrEmpty(_lastAuthor))
+                    {
+                        BannedAuthors.Add(_lastAuthor);
+                        await _client.DeleteMessageAsync(message.Chat.Id, _lastNewAuthorMessageId);
+                    }
+                }
+                else if (message.HasCommand("/command2"))
+                {
+                    // add last channel to banned channels
+                    if (_lastChannelId != -1)
+                    {
+                        BannedChannels.Add(_lastChannelId);
+                        await _client.DeleteMessageAsync(message.Chat.Id, _lastNewChannedMessageId);
+                    }
+                }
+                else if (message.HasCommand("/command3"))
+                {
+                    _vidosNumber++;
+                    await _client.SendTextMessageAsync(message.Chat.Id,
+                        "@alexvojander первая за сегодня добавлена рофланЕбало");
                 }
             }
         }
@@ -349,10 +303,9 @@ namespace ZelyaDushitelBot
         {
             if (YoutubeRegex.IsMatch(message.Text))
             {
-                return true;
                 var url = YoutubeRegex.Matches(message.Text)[0].Value.Trim('/');
-                Uri uri = new Uri("https://" + url);
-                string id = "";
+                var uri = new Uri("https://" + url);
+                var id = "";
                 var q = HttpUtility.ParseQueryString(uri.Query);
                 if (q.AllKeys.Contains("v"))
                 {
@@ -362,7 +315,7 @@ namespace ZelyaDushitelBot
                 {
                     id = uri.Segments.Last();
                 }
-                YoutubeExplode.Models.Video videoInfo = new YoutubeExplode.Models.Video(
+                var videoInfo = new YoutubeExplode.Models.Video(
                     "", "", new DateTimeOffset(), "", "", new YoutubeExplode.Models.ThumbnailSet(""),
                     TimeSpan.FromSeconds(0), new List<string>(), new YoutubeExplode.Models.Statistics(0, 0, 0));
                 try
@@ -379,7 +332,7 @@ namespace ZelyaDushitelBot
                                               $"at {DateTime.Now}\r\n" +
                                               $"exception {e}\r\n" +
                                               $"{e.StackTrace}");
-                    Thread.Sleep(1000);
+                    return true;
                 }
                 var author = videoInfo.Author;
                 if (!string.IsNullOrEmpty(author))
