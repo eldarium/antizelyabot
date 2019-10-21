@@ -22,9 +22,9 @@ namespace ZelyaDushitelBot
     class Program
     {
         static string Token = "";
-        static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
-        static readonly Regex BotTranslateRegex = new Regex(@"^бот, сколько( сейчас)?( будет)? (\d+) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotTranslateRegex = new Regex(@"^бот, сколько( сейчас)?( будет)? (\d+.?\d+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly MyHttpHandler MyHttpHandler = new MyHttpHandler(new HttpClientHandler());
         static readonly YoutubeClient YoutubeClient = new YoutubeClient(/*new HttpClient(MyHttpHandler)*/);
         static readonly string[] Stickers = new string[]{"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
@@ -122,7 +122,7 @@ namespace ZelyaDushitelBot
                     AddOffence(e.Message);
                 }
             }
-            var st = e.Message.Text.IndexOf("@PolitikaDushitelBot");
+            var st = e.Message.Text?.IndexOf("@PolitikaDushitelBot") ?? -1;
             if (st >= 0)
             {
                 var newText = (e.Message.Text.Replace("@PolitikaDushitelBot", "")).Trim();
@@ -132,7 +132,7 @@ namespace ZelyaDushitelBot
                     return;
                 }
             }
-            if (RateRegex.IsMatch(e.Message.Text))
+            if (RateRegex.IsMatch(e.Message.Text ?? ""))
             {
                 GetExchangeRates(e.Message);
                 return;
@@ -167,7 +167,9 @@ namespace ZelyaDushitelBot
                     Math.Round(decimal.Parse(nodex[i].Attributes["buy"].Value.Replace('.', ',')), decimals: 3),
                     Math.Round(decimal.Parse(nodex[i].Attributes["sale"].Value.Replace('.', ',')), decimals: 3)));
                 }
-            } else{
+            }
+            else
+            {
                 _lastStatusCode = v.StatusCode;
             }
             return list;
@@ -207,7 +209,7 @@ namespace ZelyaDushitelBot
 
         static async void OnMessage(object sender, MessageEventArgs e)
         {
-            if (e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
+            if (e.Message.From.Username?.Contains("alexvojander", StringComparison.OrdinalIgnoreCase)??false)
             {
                 if (e.Message.Type == MessageType.Video)
                 {
@@ -230,14 +232,14 @@ namespace ZelyaDushitelBot
             {
                 Console.WriteLine(e.Message.From.Username + ": [sticker] " + e.Message.Sticker.SetName + $" emoji {e.Message.Sticker.Emoji}" + " file id " + e.Message.Sticker.FileId);
 
-                if ((e.Message.Sticker.SetName.Contains("Sharij", StringComparison.OrdinalIgnoreCase) || e.Message.Sticker.SetName.Contains("Shariy", StringComparison.OrdinalIgnoreCase)))
+                if (((e.Message.Sticker.SetName?.Contains("Sharij", StringComparison.OrdinalIgnoreCase) ?? false) || (e.Message.Sticker.SetName?.Contains("Shariy", StringComparison.OrdinalIgnoreCase)??false)))
                 {
                     await _client.DeleteMessageAsync(e.Message.Chat.Id, e.Message.MessageId);
                 }
             }
             if (string.IsNullOrEmpty(e.Message.Text)) return;
             Console.WriteLine(e.Message.From.Username + ": " + e.Message.Text);
-            if (e.Message.From.Username.Contains("alexvojander", StringComparison.OrdinalIgnoreCase))
+            if (e.Message.From.Username?.Contains("alexvojander", StringComparison.OrdinalIgnoreCase)??false)
             {
                 var isBanned = /* await FindYoutube(e.Message) ||*/ e.Message.Entities != null && e.Message.Entities.Any(en => en.Type == MessageEntityType.Url);
                 if (isBanned)
@@ -262,34 +264,44 @@ namespace ZelyaDushitelBot
                 GetExchangeRates(e.Message);
                 return;
             }
-            if(BotTranslateRegex.IsMatch(e.Message.Text)){
+            if (BotTranslateRegex.IsMatch(e.Message.Text))
+            {
                 var values = await GetRatesValues();
-                var match = BotTranslateRegex.Match(e.Message.Text);       
+                var match = BotTranslateRegex.Match(e.Message.Text);
                 decimal valueNumber;
-                if(!decimal.TryParse(match.Groups[3].Value, out valueNumber)){
-                        await _client.SendTextMessageAsync(e.Message.Chat.Id,
-                            "не могу понять число");
-                            return;
+                if (!decimal.TryParse(match.Groups[3].Value, out valueNumber) ||
+                !decimal.TryParse(match.Groups[3].Value.Replace('.',','), out valueNumber))
+                {
+                    await _client.SendTextMessageAsync(e.Message.Chat.Id,
+                        "не могу понять число");
+                    return;
                 }
-                try{
-                if(match.Groups[4].Value.Equals("доллар", StringComparison.InvariantCultureIgnoreCase) || match.Groups[4].Value.Equals("бакс", StringComparison.InvariantCultureIgnoreCase)){
-                    var rate = values.First(v=>v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
-                    await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} USD\nПродать: {valueNumber * rate.Item2} грн\nКупить: {valueNumber * rate.Item3} грн");
+                try
+                {
+                    if (match.Groups[4].Value.Equals("доллар", StringComparison.InvariantCultureIgnoreCase) || match.Groups[4].Value.Equals("бакс", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        var rate = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} USD\nПродать: {valueNumber * rate.Item2} грн\nКупить: {valueNumber * rate.Item3} грн");
+                    }
+                    if (match.Groups[4].Value.Equals("евр", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        var rate = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} EUR\nПродать: {valueNumber * rate.Item2} грн\nКупить: {valueNumber * rate.Item3} грн");
+                    }
+                    if (match.Groups[4].Value.Equals("гр", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        var rate1 = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
+                        var rate2 = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} грн\nВ баксах: {Math.Round(valueNumber / rate1.Item3, 2)} USD\nВ евро: {Math.Round(valueNumber / rate2.Item3, 2)} EUR");
+                    }
+                    if (match.Groups[4].Value.Equals("бит", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        var rate = values.First(v => v.Item1.Equals("BTC", StringComparison.InvariantCultureIgnoreCase));
+                        await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} BTC\nПродать: {valueNumber * rate.Item2} USD\nКупить: {valueNumber * rate.Item3} USD");
+                    }
                 }
-                if(match.Groups[4].Value.Equals("евр", StringComparison.InvariantCultureIgnoreCase)){
-                    var rate = values.First(v=>v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
-                    await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} EUR\nПродать: {valueNumber * rate.Item2} грн\nКупить: {valueNumber * rate.Item3} грн");
-                }
-                if(match.Groups[4].Value.Equals("гр", StringComparison.InvariantCultureIgnoreCase)){
-                    var rate1 = values.First(v=>v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
-                    var rate2 = values.First(v=>v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
-                    await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} грн\nВ баксах: {Math.Round(valueNumber / rate1.Item3, 2)} USD\nВ евро: {Math.Round(valueNumber / rate2.Item3, 2)} EUR");
-                }
-                if(match.Groups[4].Value.Equals("бит", StringComparison.InvariantCultureIgnoreCase)){
-                    var rate = values.First(v=>v.Item1.Equals("BTC", StringComparison.InvariantCultureIgnoreCase));
-                    await _client.SendTextMessageAsync(e.Message.Chat.Id, $"{valueNumber} BTC\nПродать: {valueNumber * rate.Item2} USD\nКупить: {valueNumber * rate.Item3} USD");
-                }
-                } catch(OverflowException){
+                catch (OverflowException)
+                {
                     await _client.SendTextMessageAsync(e.Message.Chat.Id, "не балуйся");
                 }
             }
@@ -301,7 +313,7 @@ namespace ZelyaDushitelBot
                         $"эта команда подкидывает маму зелика - результат {new Random().Next(0, 2) == 1}");
                     break;
             }
-            if (e.Message.From.Username.Contains("Eldarium", StringComparison.OrdinalIgnoreCase))
+            if (e.Message.From.Username?.Contains("daneldarium", StringComparison.OrdinalIgnoreCase)??false)
             {
                 switch (e.Message.Text)
                 {
