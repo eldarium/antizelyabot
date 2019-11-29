@@ -26,7 +26,7 @@ namespace ZelyaDushitelBot
             }
 
             if (i < 0) return false;
-            return string.Equals(message.EntityValues.ToArray()[i].Substring(0, message.EntityValues.ToArray()[i].IndexOf("@")), commandString,
+            return string.Equals(message.EntityValues.ToArray()[i].Substring(0, message.EntityValues.ToArray()[i].IndexOf("@") > 0 ? message.EntityValues.ToArray()[i].IndexOf("@") : message.EntityValues.ToArray()[i].Length), commandString,
                 StringComparison.InvariantCultureIgnoreCase);
         }
 

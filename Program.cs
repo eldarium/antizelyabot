@@ -23,7 +23,9 @@ namespace ZelyaDushitelBot
         static string Token = "";
         static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
-        static readonly Regex BotTranslateRegex = new Regex(@"^бот, сколько( сейчас)?( будет)? (\d+.?\d+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotTranslateRegex = new Regex(@"^бот, сколько( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotWeatherRegex = new Regex(@"^(бот, )?(какая )?погода в (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly YoutubeClient YoutubeClient = new YoutubeClient();
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
@@ -50,6 +52,9 @@ namespace ZelyaDushitelBot
             _client = new TelegramBotClient(Token);
             _client.OnMessage += OnMessage;
             _client.OnMessageEdited += OnMessage;// OnMessageEdited;
+            AppDomain.CurrentDomain.UnhandledException += async (object sender, UnhandledExceptionEventArgs args2) =>{
+                await _client.SendTextMessageAsync(new ChatId(91740825), $"Unhandled exception!\n{args2.ExceptionObject}\n{(args2.ExceptionObject as Exception).InnerException?.Message}", disableNotification: true);
+            };
             _client.StartReceiving(new[] { UpdateType.EditedMessage, UpdateType.Message });
             Console.ReadLine();
             File.WriteAllText(AppContext.BaseDirectory + "authors.txt", string.Join("\r\n", BannedAuthors.ToArray()));
@@ -265,7 +270,16 @@ namespace ZelyaDushitelBot
                     await _client.SendTextMessageAsync(message.Chat.Id, "не балуйся");
                 }
             }
-
+            if(message.HasRegexIgnoreMention(BotWeatherRegex)){
+                var we = new WeatherWorker();
+                var m = BotWeatherRegex.Match(message.Text).Groups.Last();
+                if(m.Value.Contains("киев", StringComparison.InvariantCultureIgnoreCase)){
+                   await _client.SendTextMessageAsync(message.Chat.Id, we.GetWeather("kyiv"));
+                }
+                if(m.Value.Contains("днепр", StringComparison.InvariantCultureIgnoreCase)){
+                    await _client.SendTextMessageAsync(message.Chat.Id, we.GetWeather("dnipro"));
+                }
+            }
             if (message.HasCommand("/command4"))
                 await _client.SendTextMessageAsync(message.Chat.Id,
                     $"эта команда подкидывает маму зелика - результат {new Random().Next(0, 2) == 1}");
@@ -326,7 +340,7 @@ namespace ZelyaDushitelBot
                 catch (Exception e)
                 {
                     var ex = e as HttpRequestException;
-                    await _client.SendTextMessageAsync(new ChatId(91740825), $"Video {id} failed : {e}", disableNotification: true);
+                    //IDGAF await _client.SendTextMessageAsync(new ChatId(91740825), $"Video {id} failed : {e}", disableNotification: true);
                     Console.WriteLine($"Video {id} failed : {e}");
                     FailedVideos.GetOrAdd(id, $"message from {message.From} id {message.MessageId}" +
                                               $"at {DateTime.Now}\r\n" +
