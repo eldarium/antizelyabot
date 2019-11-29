@@ -62,9 +62,10 @@ namespace ZelyaDushitelBot
             return sb.ToString();
         }
 
-        public string GetForecast(string city)
+        public string GetForecast(string city, int count = 5)
         {
             string url = ForecastUrl.Replace("@LOC@", city);
+            int i = 0;
             url = url.Replace("@QUERY@", "q");
             var sb = new StringBuilder();
             using (WebClient wc = new WebClient())
@@ -81,6 +82,8 @@ namespace ZelyaDushitelBot
 
                     foreach (XmlNode time_node in xml_doc.SelectNodes("//time"))
                     {
+                        if (i == count)
+                            break;
                         // Get the time in UTC.
                         DateTime time =
                             DateTime.Parse(time_node.Attributes["from"].Value,
@@ -91,6 +94,7 @@ namespace ZelyaDushitelBot
                         string temp = temp_node.Attributes["value"].Value;
 
                         sb.AppendLine($"{time.ToShortTimeString()} : {temp}");
+                        i++;
                     }
                 }
                 catch (Exception e)
