@@ -25,7 +25,7 @@ namespace ZelyaDushitelBot
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
         static readonly Regex BotTranslateRegex = new Regex(@"^бот,? сколько( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotWeatherRegex = new Regex(@"^(бот,? )?(какая )?погода в (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotForecastRegex = new Regex(@"^бот,? прогноз (.+?)$");
+        static readonly Regex BotForecastRegex = new Regex(@"^бот,? ?прогноз (.+?)$");
         static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
@@ -201,7 +201,10 @@ namespace ZelyaDushitelBot
             if (message.HasRegexIgnoreMention(BotWeatherRegex))
             {
                 var we = new WeatherWorker();
-                var m = BotWeatherRegex.Match(message.Text).Groups.Last();
+                var mm = BotWeatherRegex.Match(message.Text);
+                if (!mm.Success)
+                    mm = BotWeatherRegex.Match(message.TextToLayout());
+                var m = mm.Groups.Last();
                 if (m.Value.Contains("киев", StringComparison.InvariantCultureIgnoreCase))
                 {
                     await _client.SendTextMessageAsync(message.Chat.Id, we.GetWeather("kyiv"));
@@ -214,7 +217,10 @@ namespace ZelyaDushitelBot
             if (message.HasRegexIgnoreMention(BotForecastRegex))
             {
                 var we = new WeatherWorker();
-                var m = BotForecastRegex.Match(message.Text).Groups.Last();
+                var mm = BotForecastRegex.Match(message.Text);
+                if (!mm.Success)
+                    mm = BotForecastRegex.Match(message.TextToLayout());
+                var m = mm.Groups.Last();
                 if (m.Value.Contains("киев", StringComparison.InvariantCultureIgnoreCase))
                 {
                     await _client.SendTextMessageAsync(message.Chat.Id, we.GetForecast("kyiv"));
