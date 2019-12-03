@@ -23,9 +23,9 @@ namespace ZelyaDushitelBot
         static string Token = "";
         static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
-        static readonly Regex BotTranslateRegex = new Regex(@"^бот, сколько( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotWeatherRegex = new Regex(@"^(бот, )?(какая )?погода в (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotForecastRegex = new Regex(@"^бот, прогноз (.+?)$");
+        static readonly Regex BotTranslateRegex = new Regex(@"^бот,? сколько( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotWeatherRegex = new Regex(@"^(бот,? )?(какая )?погода в (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotForecastRegex = new Regex(@"^бот,? прогноз (.+?)$");
         static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
@@ -160,6 +160,8 @@ namespace ZelyaDushitelBot
             {
                 var values = await GetRatesValues();
                 var match = BotTranslateRegex.Match(message.Text);
+                if (!match.Success)
+                    match = BotTranslateRegex.Match(message.TextToLayout());
                 if (!decimal.TryParse(match.Groups[3].Value, out var valueNumber) ||
                 !decimal.TryParse(match.Groups[3].Value.Replace('.', ','), out valueNumber))
                 {

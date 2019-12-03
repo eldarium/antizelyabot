@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -31,15 +32,42 @@ namespace ZelyaDushitelBot
         }
 
         public static bool HasRegex(this Message message, Regex regex) =>
-            message.Text != null && regex.IsMatch(message.Text);
+            message.Text != null && (regex.IsMatch(message.Text) || regex.IsMatch(message.TextToLayout()));
 
         public static bool HasMention(this Message message, string name) =>
-            message.Text != null && message.Text.Contains(name.StartsWith("@") ? name : "@" + name);
+            message.Text != null && (message.Text.Contains(name.StartsWith("@") ? name : "@" + name)
+            || message.TextToLayout().Contains(name.StartsWith("@") ? name : "@" + name));
 
         public static string RemoveMention(this Message message) => message.Text != null ?
-            string.Join(' ', message.Text.Split(" ").Where(a => !a.StartsWith("@")).ToArray()) :
+            TextWithoutMention(message.Text) :
             null;
 
-        public static bool HasRegexIgnoreMention(this Message message, Regex regex) => message.Text != null && regex.IsMatch(message.RemoveMention());
+        private static string TextWithoutMention(string str) => string.Join(' ', str.Split(" ").Where(a => !a.StartsWith("@")).ToArray());
+
+        public static bool HasRegexIgnoreMention(this Message message, Regex regex) => message.Text != null && (regex.IsMatch(message.RemoveMention())
+        || regex.IsMatch(TextWithoutMention(message.TextToLayout())));
+
+        public static string TextToLayout(this Message message)
+        {
+            if (message.Text == null)
+                return null;
+            StringBuilder sb = new StringBuilder();
+            var engToRus = message.Text.Any(a => _engLayout.Contains(a));
+            foreach (var mchar in message.Text)
+            {
+                var index = engToRus ? _engLayout.IndexOf(mchar) : _ruLayout.IndexOf(mchar);
+                if (index < 0)
+                {
+                    sb.Append(mchar);
+                    continue;
+                }
+                sb.Append(engToRus ?
+                _ruLayout.ElementAt(_engLayout.IndexOf(mchar)) :
+                _engLayout.ElementAt(_ruLayout.IndexOf(mchar)));
+            }
+            return sb.ToString();
+        }
+        private static string _engLayout = @"`qwertyuiop[]asdfghjkl;'zxcvbnm,.?";
+        private static string _ruLayout = @"ёйцукенгшщзхъфывапролджэячсмитьбю,";
     }
 }
