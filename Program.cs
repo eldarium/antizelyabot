@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
+using Newtonsoft.Json;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types;
@@ -54,7 +55,7 @@ namespace ZelyaDushitelBot
         }
 
         private static HttpStatusCode _lastStatusCode;
-        static async Task<List<(string, decimal, decimal)>> GetRatesValues()
+        static async Task<List<(string, decimal, decimal)>> GetRatesValuesPrivat()
         {
             var client = new HttpClient();
             var list = new List<(string, decimal, decimal)>();
@@ -90,12 +91,57 @@ namespace ZelyaDushitelBot
             return list;
         }
 
+        static async Task<List<(string, decimal, decimal)>> GetRatesValuesMono()
+        {
+            var client = new HttpClient();
+            var list = new List<(string, decimal, decimal)>();
+            client.BaseAddress = new Uri("https://api.monobank.ua/bank/currency");
+            int[] curCodes = new int[] { 980, 840, 978 };
+            string[] curNames = new string[] { "UAH", "USD", "EUR" };
+            HttpResponseMessage v;
+            try
+            {
+                v = await client.GetAsync("");
+            }
+            catch
+            {
+                throw;
+            }
+            if (v.IsSuccessStatusCode)
+            {
+                var p = await v.Content.ReadAsStringAsync();
+                var rates = JsonConvert.DeserializeObject<MonoCurrencyInfo[]>(p);
+                foreach (var r in rates.Where(a => a.CurrencyCodeB == curCodes[0] && curCodes.Contains(a.CurrencyCodeA)))
+                {
+                    list.Add((curNames.ElementAt(Array.IndexOf(curCodes, r.CurrencyCodeA)),
+                    ((decimal?)r.RateBuy) ?? 0,
+                    ((decimal?)r.RateSell) ?? 0));
+                }
+            }
+            else
+            {
+                _lastStatusCode = v.StatusCode;
+            }
+            return list;
+        }
+
+        class MonoCurrencyInfo
+        {
+            public int CurrencyCodeA { get; set; }
+            public int CurrencyCodeB { get; set; }
+            public long Date { get; set; }
+            public double? RateSell { get; set; }
+            public double? RateBuy { get; set; }
+            public double? RateCross { get; set; }
+        }
+
         static async void GetExchangeRates(Message m)
         {
             List<(string, decimal, decimal)> values;
+            var rates = "";
             try
             {
-                values = await GetRatesValues();
+                values = await GetRatesValuesPrivat();
             }
             catch (Exception e)
             {
@@ -105,19 +151,37 @@ namespace ZelyaDushitelBot
             }
             if (values.Any())
             {
-                var rates = "";
                 for (var i = 0; i < values.Count; i++)
                 {
                     rates += $"{values[i].Item1} (приват)\nПродажа {values[i].Item2}\nПокупка {values[i].Item3}";
                     rates += "\n\n";
                 }
+            }
+            try
+            {
+                values = await GetRatesValuesMono();
+            }
+            catch (Exception e)
+            {
+                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает моно курс! спасибо зеленский");
+                await _client.SendTextMessageAsync(new ChatId(91740825), e + "", disableNotification: true);
+                return;
+            }
+            if (values.Any())
+            {
+                for (var i = 0; i < values.Count; i++)
+                {
+                    rates += $"{values[i].Item1} (моно)\nПродажа {values[i].Item2}\nПокупка {values[i].Item3}";
+                    rates += "\n\n";
+                }
+            }
+            if (rates != string.Empty)
+            {
                 await _client.SendTextMessageAsync(m.Chat.Id, rates, disableNotification: true);
                 return;
             }
-            else
-            {
-                await _client.SendTextMessageAsync(m.Chat.Id, $"Еще нет курса на сегодня (наверное): статус ответа {_lastStatusCode}");
-            }
+            await _client.SendTextMessageAsync(m.Chat.Id, $"Еще нет курса на сегодня (наверное): статус ответа {_lastStatusCode}");
+
         }
 
         static async void OnMessage(object sender, MessageEventArgs e)
@@ -132,7 +196,7 @@ namespace ZelyaDushitelBot
             }
             if (message.Type == MessageType.Sticker && message.Sticker != null)
             {
-                Console.WriteLine(message.From.Username + ": [sticker] " + message.Sticker.SetName + $" emoji {message.Sticker.Emoji}" + " file id " + message.Sticker.FileId);
+                Console.WriteLine($"[{message.Chat.Id} ({message.Chat.Title})] {message.From.Username}: [sticker] {message.Sticker.SetName} emoji {message.Sticker.Emoji} file id {message.Sticker.FileId}");
 
                 if (((message.Sticker.SetName?.Contains("Sharij", StringComparison.OrdinalIgnoreCase) ?? false) ||
                  (message.Sticker.SetName?.Contains("Shariy", StringComparison.OrdinalIgnoreCase) ?? false)))
@@ -141,7 +205,7 @@ namespace ZelyaDushitelBot
                 }
             }
             if (string.IsNullOrEmpty(message.Text)) return;
-            Console.WriteLine(message.From.Username + ": " + message.Text);
+            Console.WriteLine($"[{message.Chat.Id} ({message.Chat.Title})] {message.From.Username}: {message.Text}");
             if (message.HasAuthor("alexvojander"))
             {
                 var isBanned = message.Entities != null && message.Entities.Any(en => en.Type == MessageEntityType.Url);
@@ -158,7 +222,7 @@ namespace ZelyaDushitelBot
             }
             if (message.HasRegexIgnoreMention(BotTranslateRegex))
             {
-                var values = await GetRatesValues();
+                var values = await GetRatesValuesPrivat();
                 var match = BotTranslateRegex.Match(message.Text);
                 if (!match.Success)
                     match = BotTranslateRegex.Match(message.TextToLayout());
