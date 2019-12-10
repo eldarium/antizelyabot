@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -27,7 +28,8 @@ namespace ZelyaDushitelBot
         static readonly Regex BotTranslateRegex = new Regex(@"^бот,? сколько( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotWeatherRegex = new Regex(@"^(бот,? )?(какая )?погода в (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotForecastRegex = new Regex(@"^бот,? ?прогноз (.+?)$");
-        static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода(.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotCalculateRegex = new Regex(@"^(бот,? )?посчитай (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
                                              "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
@@ -220,6 +222,20 @@ namespace ZelyaDushitelBot
                 GetExchangeRates(message);
                 return;
             }
+            if (message.HasRegexIgnoreMention(BotCalculateRegex))
+            {
+                var match = BotCalculateRegex.Match(message.Text);
+                if (!match.Success)
+                    match = BotCalculateRegex.Match(message.TextToLayout());
+                DataTable dt = new DataTable();
+                var expr = match.Groups.Last().Value;
+                try{
+                await _client.SendTextMessageAsync(message.Chat.Id, "" + dt.Compute(expr, null));
+                } catch(Exception ex){
+                    await _client.SendTextMessageAsync(message.Chat.Id, "чтото пошло не так "+ex.Message);
+                    await _client.SendTextMessageAsync(new ChatId(91740825), $"can't calculate: {e}", disableNotification: true);
+                }
+            }
             if (message.HasRegexIgnoreMention(BotTranslateRegex))
             {
                 var values = await GetRatesValuesPrivat();
@@ -262,12 +278,16 @@ namespace ZelyaDushitelBot
                     await _client.SendTextMessageAsync(message.Chat.Id, "не балуйся");
                 }
             }
-            if (message.HasRegexIgnoreMention(BotWeatherRegex))
+            if (message.HasRegexIgnoreMention(BotWeatherRegex) || message.HasRegexIgnoreMention(BotWeatherSmallRegex))
             {
                 var we = new WeatherWorker();
                 var mm = BotWeatherRegex.Match(message.Text);
                 if (!mm.Success)
                     mm = BotWeatherRegex.Match(message.TextToLayout());
+                if (!mm.Success)
+                    mm = BotWeatherSmallRegex.Match(message.Text);
+                if (!mm.Success)
+                    mm = BotWeatherSmallRegex.Match(message.TextToLayout());
                 var m = mm.Groups.Last();
                 if (m.Value.Contains("киев", StringComparison.InvariantCultureIgnoreCase))
                 {
