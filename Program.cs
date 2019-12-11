@@ -25,7 +25,7 @@ namespace ZelyaDushitelBot
         static string Token = "";
         static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
-        static readonly Regex BotTranslateRegex = new Regex(@"^бот,? сколько( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotTranslateRegex = new Regex(@"^бот,?( сколько)?( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotWeatherRegex = new Regex(@"^(бот,? )?(какая )?погода в (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotForecastRegex = new Regex(@"^бот,? ?прогноз (.+?)$");
         static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода(.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -229,11 +229,18 @@ namespace ZelyaDushitelBot
                     match = BotCalculateRegex.Match(message.TextToLayout());
                 DataTable dt = new DataTable();
                 var expr = match.Groups.Last().Value;
-                try{
+                try
+                {
                 await _client.SendTextMessageAsync(message.Chat.Id, "" + dt.Compute(expr, null));
-                } catch(Exception ex){
+                }
+                catch(EvaluateException eex){                    
+                    await _client.SendTextMessageAsync(message.Chat.Id, "не могу посчитать");
+                    Console.WriteLine(eex.ToString());
+                }
+                catch(Exception ex)
+                {
                     await _client.SendTextMessageAsync(message.Chat.Id, "чтото пошло не так "+ex.Message);
-                    await _client.SendTextMessageAsync(new ChatId(91740825), $"can't calculate: {e}", disableNotification: true);
+                    await _client.SendTextMessageAsync(new ChatId(91740825), $"can't calculate: {ex}", disableNotification: true);
                 }
             }
             if (message.HasRegexIgnoreMention(BotTranslateRegex))
@@ -242,8 +249,8 @@ namespace ZelyaDushitelBot
                 var match = BotTranslateRegex.Match(message.Text);
                 if (!match.Success)
                     match = BotTranslateRegex.Match(message.TextToLayout());
-                if (!decimal.TryParse(match.Groups[3].Value, out var valueNumber) ||
-                !decimal.TryParse(match.Groups[3].Value.Replace('.', ','), out valueNumber))
+                if (!decimal.TryParse(match.Groups[4].Value, out var valueNumber) ||
+                !decimal.TryParse(match.Groups[4].Value.Replace('.', ','), out valueNumber))
                 {
                     await _client.SendTextMessageAsync(message.Chat.Id,
                         "не могу понять число");
@@ -251,23 +258,24 @@ namespace ZelyaDushitelBot
                 }
                 try
                 {
-                    if (match.Groups[4].Value.Equals("доллар", StringComparison.InvariantCultureIgnoreCase) || match.Groups[4].Value.Equals("бакс", StringComparison.InvariantCultureIgnoreCase))
+                    if (match.Groups[5].Value.Equals("доллар", StringComparison.InvariantCultureIgnoreCase) ||
+                    match.Groups[5].Value.Equals("бакс", StringComparison.InvariantCultureIgnoreCase))
                     {
                         var (_, item2, item3) = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
                         await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} USD\nПродать: {valueNumber * item2} грн\nКупить: {valueNumber * item3} грн");
                     }
-                    if (match.Groups[4].Value.Equals("евр", StringComparison.InvariantCultureIgnoreCase))
+                    if (match.Groups[5].Value.Equals("евр", StringComparison.InvariantCultureIgnoreCase))
                     {
                         var (_, item2, item3) = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
                         await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} EUR\nПродать: {valueNumber * item2} грн\nКупить: {valueNumber * item3} грн");
                     }
-                    if (match.Groups[4].Value.Equals("гр", StringComparison.InvariantCultureIgnoreCase))
+                    if (match.Groups[5].Value.Equals("гр", StringComparison.InvariantCultureIgnoreCase))
                     {
                         var (_, _, item3) = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));
                         var (_, _, item4) = values.First(v => v.Item1.Equals("EUR", StringComparison.InvariantCultureIgnoreCase));
                         await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} грн\nВ баксах: {Math.Round(valueNumber / item3, 2)} USD\nВ евро: {Math.Round(valueNumber / item4, 2)} EUR");
                     }
-                    if (match.Groups[4].Value.Equals("бит", StringComparison.InvariantCultureIgnoreCase))
+                    if (match.Groups[5].Value.Equals("бит", StringComparison.InvariantCultureIgnoreCase))
                     {
                         var (_, item2, item3) = values.First(v => v.Item1.Equals("BTC", StringComparison.InvariantCultureIgnoreCase));
                         await _client.SendTextMessageAsync(message.Chat.Id, $"{valueNumber} BTC\nПродать: {valueNumber * item2} USD\nКупить: {valueNumber * item3} USD");
