@@ -342,12 +342,12 @@ namespace ZelyaDushitelBot
                     }
                     if (cc.Messages.FirstOrDefault(a => a.AuthorId == message.From.Id && a.ChatId == message.Chat.Id) != null)
                     {
-                        await _client.SendTextMessageAsync(message.Chat.Id, "уже чтото помню, забываю (несколько месаг потом както сделаю)");
+                        //await _client.SendTextMessageAsync(message.Chat.Id, "уже чтото помню, забываю (несколько месаг потом както сделаю)");
                         cc.Messages.RemoveRange(cc.Messages.Where(m => m.AuthorId == message.From.Id && m.ChatId == message.Chat.Id));
                     }
                     await cc.Messages.AddAsync(new RememberMessage() { MessageId = rtm.MessageId, AuthorId = message.From.Id, ChatId = message.Chat.Id });
                     await cc.SaveChangesAsync();
-                    await _client.SendTextMessageAsync(message.Chat.Id, "запомнил Каппа");
+                    await _client.SendStickerAsync(message.Chat.Id, "CAADAgADDgMAAvzY0Aq4gjQKLEACXBYE");
                 }
             }
             if (message.HasRegexIgnoreMention(BotRecallRegex))
