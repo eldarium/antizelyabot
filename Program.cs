@@ -335,17 +335,17 @@ namespace ZelyaDushitelBot
                 }
                 using (var cc = new RememberMessageContext())
                 {
-                    if (cc.Messages.FirstOrDefault(a => a.MessageId == rtm.MessageId) != null)
+                    if (cc.Messages.FirstOrDefault(a => a.MessageId == rtm.MessageId && a.ChatId == rtm.Chat.Id) != null)
                     {
                         await _client.SendTextMessageAsync(message.Chat.Id, "уже помню");
                         return;
                     }
-                    if (cc.Messages.FirstOrDefault(a => a.AuthorId == message.From.Id) != null)
+                    if (cc.Messages.FirstOrDefault(a => a.AuthorId == message.From.Id && a.ChatId == message.Chat.Id) != null)
                     {
                         await _client.SendTextMessageAsync(message.Chat.Id, "уже чтото помню, забываю (несколько месаг потом както сделаю)");
-                        cc.Messages.RemoveRange(cc.Messages.Where(m => m.AuthorId == message.From.Id));
+                        cc.Messages.RemoveRange(cc.Messages.Where(m => m.AuthorId == message.From.Id && m.ChatId == message.Chat.Id));
                     }
-                    await cc.Messages.AddAsync(new RememberMessage() { MessageId = rtm.MessageId, AuthorId = message.From.Id });
+                    await cc.Messages.AddAsync(new RememberMessage() { MessageId = rtm.MessageId, AuthorId = message.From.Id, ChatId = message.Chat.Id });
                     await cc.SaveChangesAsync();
                     await _client.SendTextMessageAsync(message.Chat.Id, "запомнил Каппа");
                 }
@@ -354,7 +354,7 @@ namespace ZelyaDushitelBot
             {
                 using (var cc = new RememberMessageContext())
                 {
-                    var foundM = cc.Messages.FirstOrDefault(aw => aw.AuthorId == message.From.Id);
+                    var foundM = cc.Messages.FirstOrDefault(aw => aw.AuthorId == message.From.Id&& aw.ChatId == message.Chat.Id);
                     if (foundM == null)
                     {
                         await _client.SendTextMessageAsync(message.Chat.Id, "ничего не вспомнил рофланПоминки");

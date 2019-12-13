@@ -24,6 +24,9 @@ namespace ZelyaDushitelBot.Migrations
                     b.Property<long>("AuthorId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long>("ChatId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("MessageId")
                         .HasColumnType("INTEGER");
 
