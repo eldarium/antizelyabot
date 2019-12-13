@@ -30,6 +30,8 @@ namespace ZelyaDushitelBot
         static readonly Regex BotForecastRegex = new Regex(@"^бот,? ?прогноз (.+?)$");
         static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода(.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotCalculateRegex = new Regex(@"^(бот,? )?посчитай (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotRememberRegex = new Regex(@"^бот(,)? запомни$");
+        static readonly Regex BotRecallRegex = new Regex(@"^бот(,)? вспомни$");
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
                                              "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
@@ -231,15 +233,16 @@ namespace ZelyaDushitelBot
                 var expr = match.Groups.Last().Value;
                 try
                 {
-                await _client.SendTextMessageAsync(message.Chat.Id, "" + dt.Compute(expr, null));
+                    await _client.SendTextMessageAsync(message.Chat.Id, "" + dt.Compute(expr, null));
                 }
-                catch(EvaluateException eex){                    
+                catch (EvaluateException eex)
+                {
                     await _client.SendTextMessageAsync(message.Chat.Id, "не могу посчитать");
                     Console.WriteLine(eex.ToString());
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    await _client.SendTextMessageAsync(message.Chat.Id, "чтото пошло не так "+ex.Message);
+                    await _client.SendTextMessageAsync(message.Chat.Id, "чтото пошло не так " + ex.Message);
                     await _client.SendTextMessageAsync(new ChatId(91740825), $"can't calculate: {ex}", disableNotification: true);
                 }
             }
@@ -320,6 +323,44 @@ namespace ZelyaDushitelBot
                 if (m.Value.Contains("днепр", StringComparison.InvariantCultureIgnoreCase))
                 {
                     await _client.SendTextMessageAsync(message.Chat.Id, we.GetForecast("dnipro"));
+                }
+            }
+            if (message.HasRegexIgnoreMention(BotRememberRegex))
+            {
+                var rtm = message.ReplyToMessage;
+                if (rtm == null)
+                {
+                    await _client.SendTextMessageAsync(message.Chat.Id, "ответь на сообщение которое нужно запомнить (не пересылать)");
+                    return;
+                }
+                using (var cc = new RememberMessageContext())
+                {
+                    if (cc.Messages.FirstOrDefault(a => a.MessageId == rtm.MessageId) != null)
+                    {
+                        await _client.SendTextMessageAsync(message.Chat.Id, "уже помню");
+                        return;
+                    }
+                    if (cc.Messages.FirstOrDefault(a => a.AuthorId == message.From.Id) != null)
+                    {
+                        await _client.SendTextMessageAsync(message.Chat.Id, "уже чтото помню, забываю (несколько месаг потом както сделаю)");
+                        cc.Messages.RemoveRange(cc.Messages.Where(m => m.AuthorId == message.From.Id));
+                    }
+                    await cc.Messages.AddAsync(new RememberMessage() { MessageId = rtm.MessageId, AuthorId = message.From.Id });
+                    await cc.SaveChangesAsync();
+                    await _client.SendTextMessageAsync(message.Chat.Id, "запомнил Каппа");
+                }
+            }
+            if (message.HasRegexIgnoreMention(BotRecallRegex))
+            {
+                using (var cc = new RememberMessageContext())
+                {
+                    var foundM = cc.Messages.FirstOrDefault(aw => aw.AuthorId == message.From.Id);
+                    if (foundM == null)
+                    {
+                        await _client.SendTextMessageAsync(message.Chat.Id, "ничего не вспомнил рофланПоминки");
+                        return;
+                    }
+                    await _client.SendTextMessageAsync(message.Chat.Id, "напоминаю", replyToMessageId: (int)foundM.MessageId);
                 }
             }
             if (message.HasCommand("/command4"))
