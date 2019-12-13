@@ -32,6 +32,7 @@ namespace ZelyaDushitelBot
         static readonly Regex BotCalculateRegex = new Regex(@"^(бот,? )?посчитай (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotRememberRegex = new Regex(@"^бот(,)? запомни$");
         static readonly Regex BotRecallRegex = new Regex(@"^бот(,)? вспомни$");
+        static readonly Regex BotForgetRegex = new Regex(@"^бот(,)? забудь( вс(ё|е))?$");
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
                                              "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
@@ -340,10 +341,9 @@ namespace ZelyaDushitelBot
                         await _client.SendTextMessageAsync(message.Chat.Id, "уже помню");
                         return;
                     }
-                    if (cc.Messages.FirstOrDefault(a => a.AuthorId == message.From.Id && a.ChatId == message.Chat.Id) != null)
+                    if (cc.Messages.Count() == 5)
                     {
-                        //await _client.SendTextMessageAsync(message.Chat.Id, "уже чтото помню, забываю (несколько месаг потом както сделаю)");
-                        cc.Messages.RemoveRange(cc.Messages.Where(m => m.AuthorId == message.From.Id && m.ChatId == message.Chat.Id));
+                        cc.Messages.Remove(cc.Messages.Take(1).First());
                     }
                     await cc.Messages.AddAsync(new RememberMessage() { MessageId = rtm.MessageId, AuthorId = message.From.Id, ChatId = message.Chat.Id });
                     await cc.SaveChangesAsync();
@@ -354,13 +354,25 @@ namespace ZelyaDushitelBot
             {
                 using (var cc = new RememberMessageContext())
                 {
-                    var foundM = cc.Messages.FirstOrDefault(aw => aw.AuthorId == message.From.Id&& aw.ChatId == message.Chat.Id);
+                    var foundM = cc.Messages.FirstOrDefault(aw => aw.AuthorId == message.From.Id && aw.ChatId == message.Chat.Id);
                     if (foundM == null)
                     {
                         await _client.SendTextMessageAsync(message.Chat.Id, "ничего не вспомнил рофланПоминки");
                         return;
                     }
-                    await _client.SendTextMessageAsync(message.Chat.Id, "напоминаю", replyToMessageId: (int)foundM.MessageId);
+                    foreach (var m in cc.Messages.Where(aw => aw.AuthorId == message.From.Id && aw.ChatId == message.Chat.Id).Take(5))
+                    {
+                        await _client.SendTextMessageAsync(message.Chat.Id, "напоминаю", replyToMessageId: (int)m.MessageId);
+                    }
+                }
+            }
+            if (message.HasRegexIgnoreMention(BotForgetRegex))
+            {
+                using (var cc = new RememberMessageContext())
+                {
+                    cc.Messages.RemoveRange(cc.Messages.Where(s => s.AuthorId == message.From.Id && s.ChatId == message.Chat.Id));
+                    await cc.SaveChangesAsync();
+                    await _client.SendTextMessageAsync(message.Chat.Id, "все забыл");
                 }
             }
             if (message.HasCommand("/command4"))
