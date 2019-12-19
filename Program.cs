@@ -30,9 +30,9 @@ namespace ZelyaDushitelBot
         static readonly Regex BotForecastRegex = new Regex(@"^бот,? ?прогноз (.+?)$");
         static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода(.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotCalculateRegex = new Regex(@"^(бот,? )?посчитай (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotRememberRegex = new Regex(@"^бот(,)? запомни$");
-        static readonly Regex BotRecallRegex = new Regex(@"^бот(,)? вспомни$");
-        static readonly Regex BotForgetRegex = new Regex(@"^бот(,)? забудь( вс(ё|е))?$");
+        static readonly Regex BotRememberRegex = new Regex(@"^бот(,)? запомни$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotRecallRegex = new Regex(@"^бот(,)? вспомни$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotForgetRegex = new Regex(@"^бот(,)? забудь( вс(ё|е))?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
                                              "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
@@ -341,9 +341,9 @@ namespace ZelyaDushitelBot
                         await _client.SendTextMessageAsync(message.Chat.Id, "уже помню");
                         return;
                     }
-                    if (cc.Messages.Count() == 5)
+                    if (cc.Messages.Where(a => a.MessageId == rtm.MessageId && a.ChatId == rtm.Chat.Id).Count() == 5)
                     {
-                        cc.Messages.Remove(cc.Messages.Take(1).First());
+                        cc.Messages.Remove(cc.Messages.Where(a => a.MessageId == rtm.MessageId && a.ChatId == rtm.Chat.Id).Take(1).First());
                     }
                     await cc.Messages.AddAsync(new RememberMessage() { MessageId = rtm.MessageId, AuthorId = message.From.Id, ChatId = message.Chat.Id });
                     await cc.SaveChangesAsync();

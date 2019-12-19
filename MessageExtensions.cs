@@ -12,8 +12,8 @@ namespace ZelyaDushitelBot
         public static bool HasAuthor(this Message message) => message.From != null;
 
         public static bool HasAuthor(this Message message, string authorName) =>
-            message.HasAuthor() && message.From.Username.Contains(authorName,
-                StringComparison.InvariantCultureIgnoreCase);
+            message.HasAuthor() && (message.From.Username?.Contains(authorName,
+                StringComparison.InvariantCultureIgnoreCase)??false);
 
         public static bool HasCommand(this Message message, string commandString)
         {
