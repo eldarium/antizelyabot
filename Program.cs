@@ -56,7 +56,7 @@ namespace ZelyaDushitelBot
 
         static async void AddOffence(Message message)
         {
-            await _client.SendStickerAsync(message.Chat.Id, Stickers[new Random((int)DateTime.Now.Ticks).Next(0, 4)], replyToMessageId: message.MessageId);
+            //await _client.SendStickerAsync(message.Chat.Id, Stickers[new Random((int)DateTime.Now.Ticks).Next(0, 4)], replyToMessageId: message.MessageId);
         }
 
         private static HttpStatusCode _lastStatusCode;
@@ -192,11 +192,40 @@ namespace ZelyaDushitelBot
         static async void OnMessage(object sender, MessageEventArgs e)
         {
             var message = e.Message;
+            if (message.HasCommand("/paporotnik"))
+            {
+                await _client.SendTextMessageAsync(message.Chat.Id, "Встречаются два папоротника в непригодных для размножения условиях, и один другому говорит: \"Ну, тут не поспоришь\"");
+                return;
+            }
+            if (message.Text?.Equals("Я ПОПАЛА БЫ В РОШАНА", StringComparison.InvariantCultureIgnoreCase) ?? false){
+                await _client.SendTextMessageAsync(message.Chat.Id, "С ЗАКРЫТЫМИ ГЛАЗАМИ");
+            }
+            if (message.Text?.Equals("ну тут не поспоришь", StringComparison.InvariantCultureIgnoreCase) ?? false)
+            {
+                await _client.SendTextMessageAsync(message.Chat.Id, "НУ ТУТ НЕ ПОСПОРИШЬ");
+                return;
+            }
+            if ((message.Text?.Contains("джаггер", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
+            (message.Text?.Contains("джагер", StringComparison.InvariantCultureIgnoreCase) ?? false))
+            {
+                await _client.SendTextMessageAsync(message.Chat.Id, "я джаггернаут, СУКА");
+                return;
+            }
+            if (message.Text?.Equals("никита", StringComparison.InvariantCultureIgnoreCase) ?? false)
+            {
+                await _client.SendTextMessageAsync(message.Chat.Id, "медведь = собака Pepega я джагернаут сука Pepega контрол Pepega займите 20 гривен Pepega");
+                return;
+            }
             if (message.HasAuthor("alexvojander"))
             {
                 if (message.Type == MessageType.Video)
                 {
                     AddOffence(message);
+                }
+                if (message.HasCommand("spam"))
+                {
+                    await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                    return;
                 }
             }
             if (message.Type == MessageType.Sticker && message.Sticker != null)
@@ -328,6 +357,8 @@ namespace ZelyaDushitelBot
             }
             if (message.HasRegexIgnoreMention(BotRememberRegex))
             {
+                await _client.SendTextMessageAsync(message.Chat.Id, "а как думоть");
+                return;
                 var rtm = message.ReplyToMessage;
                 if (rtm == null)
                 {
@@ -352,6 +383,8 @@ namespace ZelyaDushitelBot
             }
             if (message.HasRegexIgnoreMention(BotRecallRegex))
             {
+                await _client.SendTextMessageAsync(message.Chat.Id, "а как думоть");
+                return;
                 using (var cc = new RememberMessageContext())
                 {
                     var foundM = cc.Messages.FirstOrDefault(aw => aw.AuthorId == message.From.Id && aw.ChatId == message.Chat.Id);
@@ -368,6 +401,8 @@ namespace ZelyaDushitelBot
             }
             if (message.HasRegexIgnoreMention(BotForgetRegex))
             {
+                await _client.SendTextMessageAsync(message.Chat.Id, "а как думоть");
+                return;
                 using (var cc = new RememberMessageContext())
                 {
                     cc.Messages.RemoveRange(cc.Messages.Where(s => s.AuthorId == message.From.Id && s.ChatId == message.Chat.Id));
