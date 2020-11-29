@@ -2,11 +2,14 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Xml;
@@ -30,9 +33,7 @@ namespace ZelyaDushitelBot
         static readonly Regex BotForecastRegex = new Regex(@"^бот,? ?прогноз (.+?)$");
         static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода(.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotCalculateRegex = new Regex(@"^(бот,? )?посчитай (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotRememberRegex = new Regex(@"^бот(,)? запомни$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotRecallRegex = new Regex(@"^бот(,)? вспомни$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotForgetRegex = new Regex(@"^бот(,)? забудь( вс(ё|е))?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotConvertRegex = new Regex(@"^(бот,? )?конв(ертируй)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
                                              "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
@@ -211,11 +212,6 @@ namespace ZelyaDushitelBot
                 await _client.SendTextMessageAsync(message.Chat.Id, "я джаггернаут, СУКА");
                 return;
             }
-            if (message.Text?.Equals("никита", StringComparison.InvariantCultureIgnoreCase) ?? false)
-            {
-                await _client.SendTextMessageAsync(message.Chat.Id, "медведь = собака Pepega я джагернаут сука Pepega контрол Pepega займите 20 гривен Pepega");
-                return;
-            }
             if (message.HasAuthor("alexvojander"))
             {
                 if (message.Type == MessageType.Video)
@@ -237,6 +233,41 @@ namespace ZelyaDushitelBot
                 {
                     await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                 }
+            }
+            if(!(message.Document is null) || message.Document.FileName.EndsWith("fb2"))
+            {
+                var ctsource = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+                var bookFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, message.Document.FileName);
+                using( var fs = File.OpenWrite(bookFilePath)){
+                    await _client.GetInfoAndDownloadFileAsync(message.Document.FileId, fs, ctsource.Token);
+                fs.Flush();
+                }
+                var a = new Process();
+            string outp = "";
+            string newbookFilePath = null;
+            Regex rr = new Regex("failed: [1-9]+?");
+            try{
+            a.StartInfo.FileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"translator\fb2pdf.cmd");
+            a.StartInfo.Arguments = $@"{bookFilePath}";
+            a.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
+            a.StartInfo.RedirectStandardOutput = true;
+            a.Start();
+            outp = a.StandardOutput.ReadToEnd();
+            a.WaitForExit();
+            newbookFilePath = bookFilePath.Replace("fb2", "pdf");
+            using(var fs = File.OpenRead(newbookFilePath)){
+            await _client.SendDocumentAsync(message.Chat.Id, new Telegram.Bot.Types.InputFiles.InputOnlineFile(fs,message.Document.FileName.Replace("fb2","pdf")));
+            }
+            } catch(Exception ex){
+                Console.WriteLine(ex.Message);
+            }
+            if(rr.IsMatch(outp)){
+                await _client.SendTextMessageAsync(message.Chat.Id, "errors when converting");
+            }
+            File.Delete(bookFilePath);
+            if(newbookFilePath != null){
+            File.Delete(newbookFilePath);
+            File.Delete(bookFilePath+"pdf");}
             }
             if (string.IsNullOrEmpty(message.Text)) return;
             Console.WriteLine($"[{message.Chat.Id} ({message.Chat.Title})] {message.From.Username}: {message.Text}");
@@ -353,61 +384,6 @@ namespace ZelyaDushitelBot
                 if (m.Value.Contains("днепр", StringComparison.InvariantCultureIgnoreCase))
                 {
                     await _client.SendTextMessageAsync(message.Chat.Id, we.GetForecast("dnipro"));
-                }
-            }
-            if (message.HasRegexIgnoreMention(BotRememberRegex))
-            {
-                await _client.SendTextMessageAsync(message.Chat.Id, "а как думоть");
-                return;
-                var rtm = message.ReplyToMessage;
-                if (rtm == null)
-                {
-                    await _client.SendTextMessageAsync(message.Chat.Id, "ответь на сообщение которое нужно запомнить (не пересылать)");
-                    return;
-                }
-                using (var cc = new RememberMessageContext())
-                {
-                    if (cc.Messages.FirstOrDefault(a => a.MessageId == rtm.MessageId && a.ChatId == rtm.Chat.Id) != null)
-                    {
-                        await _client.SendTextMessageAsync(message.Chat.Id, "уже помню");
-                        return;
-                    }
-                    if (cc.Messages.Where(a => a.MessageId == rtm.MessageId && a.ChatId == rtm.Chat.Id).Count() == 5)
-                    {
-                        cc.Messages.Remove(cc.Messages.Where(a => a.MessageId == rtm.MessageId && a.ChatId == rtm.Chat.Id).Take(1).First());
-                    }
-                    await cc.Messages.AddAsync(new RememberMessage() { MessageId = rtm.MessageId, AuthorId = message.From.Id, ChatId = message.Chat.Id });
-                    await cc.SaveChangesAsync();
-                    await _client.SendStickerAsync(message.Chat.Id, "CAADAgADDgMAAvzY0Aq4gjQKLEACXBYE");
-                }
-            }
-            if (message.HasRegexIgnoreMention(BotRecallRegex))
-            {
-                await _client.SendTextMessageAsync(message.Chat.Id, "а как думоть");
-                return;
-                using (var cc = new RememberMessageContext())
-                {
-                    var foundM = cc.Messages.FirstOrDefault(aw => aw.AuthorId == message.From.Id && aw.ChatId == message.Chat.Id);
-                    if (foundM == null)
-                    {
-                        await _client.SendTextMessageAsync(message.Chat.Id, "ничего не вспомнил рофланПоминки");
-                        return;
-                    }
-                    foreach (var m in cc.Messages.Where(aw => aw.AuthorId == message.From.Id && aw.ChatId == message.Chat.Id).Take(5))
-                    {
-                        await _client.SendTextMessageAsync(message.Chat.Id, "напоминаю", replyToMessageId: (int)m.MessageId);
-                    }
-                }
-            }
-            if (message.HasRegexIgnoreMention(BotForgetRegex))
-            {
-                await _client.SendTextMessageAsync(message.Chat.Id, "а как думоть");
-                return;
-                using (var cc = new RememberMessageContext())
-                {
-                    cc.Messages.RemoveRange(cc.Messages.Where(s => s.AuthorId == message.From.Id && s.ChatId == message.Chat.Id));
-                    await cc.SaveChangesAsync();
-                    await _client.SendTextMessageAsync(message.Chat.Id, "все забыл");
                 }
             }
             if (message.HasCommand("/command4"))
