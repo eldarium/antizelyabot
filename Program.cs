@@ -237,7 +237,12 @@ namespace ZelyaDushitelBot
             if(!(message.Document is null) || message.Document.FileName.EndsWith("fb2"))
             {
                 var ctsource = new CancellationTokenSource(TimeSpan.FromMinutes(10));
-                var bookFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, message.Document.FileName);
+                var ru = "йцукенгшщзхъфывапролджэячсмитьбю" +"йцукенгшщзхъфывапролджэячсмитьбю".ToUpper();
+                var en = "icukengsszh-fyvaproldzeacsmin-bu"+"icukengsszh-fyvaproldzeacsmin-bu".ToUpper();
+                string rfn = message.Document.FileName;
+                for(int i =0; i<ru.Length;i++)
+                    rfn = rfn.Replace(ru[i], en[i]);
+                var bookFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, rfn);
                 using( var fs = File.OpenWrite(bookFilePath)){
                     await _client.GetInfoAndDownloadFileAsync(message.Document.FileId, fs, ctsource.Token);
                 fs.Flush();
@@ -248,7 +253,7 @@ namespace ZelyaDushitelBot
             Regex rr = new Regex("failed: [1-9]+?");
             try{
             a.StartInfo.FileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"translator\fb2pdf.cmd");
-            a.StartInfo.Arguments = $@"{bookFilePath}";
+            a.StartInfo.Arguments = $"\"{bookFilePath}\"";
             a.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
             a.StartInfo.RedirectStandardOutput = true;
             a.Start();
@@ -256,7 +261,7 @@ namespace ZelyaDushitelBot
             a.WaitForExit();
             newbookFilePath = bookFilePath.Replace("fb2", "pdf");
             using(var fs = File.OpenRead(newbookFilePath)){
-            await _client.SendDocumentAsync(message.Chat.Id, new Telegram.Bot.Types.InputFiles.InputOnlineFile(fs,message.Document.FileName.Replace("fb2","pdf")));
+            await _client.SendDocumentAsync(message.Chat.Id, new Telegram.Bot.Types.InputFiles.InputOnlineFile(fs,rfn.Replace("fb2","pdf")));
             }
             } catch(Exception ex){
                 Console.WriteLine(ex.Message);
