@@ -234,7 +234,7 @@ namespace ZelyaDushitelBot
                     await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                 }
             }
-            if(!(message.Document is null) || message.Document.FileName.EndsWith("fb2"))
+            if(!(message.Document is null) && (message.Document?.FileName?.EndsWith("fb2") ?? false))
             {
                 var ctsource = new CancellationTokenSource(TimeSpan.FromMinutes(10));
                 var ru = "йцукенгшщзхъфывапролджэячсмитьбю" +"йцукенгшщзхъфывапролджэячсмитьбю".ToUpper();
