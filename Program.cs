@@ -34,6 +34,8 @@ namespace ZelyaDushitelBot
         static readonly Regex BotWeatherSmallRegex = new Regex(@"^(бот, )?(какая )?погода(.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotCalculateRegex = new Regex(@"^(бот,? )?посчитай (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotConvertRegex = new Regex(@"^(бот,? )?конв(ертируй)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotMudroomRegex = new Regex(@"^склад грязи$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotOpensourceRegex = new Regex(@"^open(-)source|oss|опенсурс|опенсорс$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
                                              "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
@@ -284,6 +286,14 @@ namespace ZelyaDushitelBot
                     AddOffence(message);
                     return;
                 }
+            }
+            if(message.HasRegexIgnoreMention(BotMudroomRegex)){
+                await _client.SendTextMessageAsync(message.Chat.Id, "склад грязи");
+                return;
+            }
+            if(message.HasRegexIgnoreMention(BotOpensourceRegex)){
+                await _client.SendTextMessageAsync(message.Chat.Id, "https://github.com/eldarium/antizelyabot");
+                return;
             }
             if (message.HasRegexIgnoreMention(RateRegex))
             {
