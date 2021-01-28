@@ -36,6 +36,9 @@ namespace ZelyaDushitelBot
         static readonly Regex BotConvertRegex = new Regex(@"^(бот,? )?конв(ертируй)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotMudroomRegex = new Regex(@"^склад грязи$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotOpensourceRegex = new Regex(@"^open(-)source|oss|опенсурс|опенсорс$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotLetsSeeRegex = new Regex(@"^(ну )?(посмотрим|поглядим|увидим|пожив[её]м(-| )увидим)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static int letsSeeCooldown = 0;
+        static object lockObject = new object();
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
                                              "CAADAgADBQAD9SbqFjlymYiX2Bj7FgQ",
                                              "CAADAgADBgAD9SbqFoVc73WZyzaDFgQ",
@@ -200,7 +203,8 @@ namespace ZelyaDushitelBot
                 await _client.SendTextMessageAsync(message.Chat.Id, "Встречаются два папоротника в непригодных для размножения условиях, и один другому говорит: \"Ну, тут не поспоришь\"");
                 return;
             }
-            if (message.Text?.Equals("Я ПОПАЛА БЫ В РОШАНА", StringComparison.InvariantCultureIgnoreCase) ?? false){
+            if (message.Text?.Equals("Я ПОПАЛА БЫ В РОШАНА", StringComparison.InvariantCultureIgnoreCase) ?? false)
+            {
                 await _client.SendTextMessageAsync(message.Chat.Id, "С ЗАКРЫТЫМИ ГЛАЗАМИ");
             }
             if (message.Text?.Equals("ну тут не поспоришь", StringComparison.InvariantCultureIgnoreCase) ?? false)
@@ -236,45 +240,53 @@ namespace ZelyaDushitelBot
                     await _client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                 }
             }
-            if(!(message.Document is null) && (message.Document?.FileName?.EndsWith("fb2") ?? false))
+            if (!(message.Document is null) && (message.Document?.FileName?.EndsWith("fb2") ?? false))
             {
                 var ctsource = new CancellationTokenSource(TimeSpan.FromMinutes(10));
-                var ru = "йцукенгшщзхъфывапролджэячсмитьбю" +"йцукенгшщзхъфывапролджэячсмитьбю".ToUpper();
-                var en = "icukengsszh-fyvaproldzeacsmin-bu"+"icukengsszh-fyvaproldzeacsmin-bu".ToUpper();
+                var ru = "йцукенгшщзхъфывапролджэячсмитьбю" + "йцукенгшщзхъфывапролджэячсмитьбю".ToUpper();
+                var en = "icukengsszh-fyvaproldzeacsmin-bu" + "icukengsszh-fyvaproldzeacsmin-bu".ToUpper();
                 string rfn = message.Document.FileName;
-                for(int i =0; i<ru.Length;i++)
+                for (int i = 0; i < ru.Length; i++)
                     rfn = rfn.Replace(ru[i], en[i]);
                 var bookFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, rfn);
-                using( var fs = File.OpenWrite(bookFilePath)){
+                using (var fs = File.OpenWrite(bookFilePath))
+                {
                     await _client.GetInfoAndDownloadFileAsync(message.Document.FileId, fs, ctsource.Token);
-                fs.Flush();
+                    fs.Flush();
                 }
                 var a = new Process();
-            string outp = "";
-            string newbookFilePath = null;
-            Regex rr = new Regex("failed: [1-9]+?");
-            try{
-            a.StartInfo.FileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"translator\fb2pdf.cmd");
-            a.StartInfo.Arguments = $"\"{bookFilePath}\"";
-            a.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-            a.StartInfo.RedirectStandardOutput = true;
-            a.Start();
-            outp = a.StandardOutput.ReadToEnd();
-            a.WaitForExit();
-            newbookFilePath = bookFilePath.Replace("fb2", "pdf");
-            using(var fs = File.OpenRead(newbookFilePath)){
-            await _client.SendDocumentAsync(message.Chat.Id, new Telegram.Bot.Types.InputFiles.InputOnlineFile(fs,rfn.Replace("fb2","pdf")));
-            }
-            } catch(Exception ex){
-                Console.WriteLine(ex.Message);
-            }
-            if(rr.IsMatch(outp)){
-                await _client.SendTextMessageAsync(message.Chat.Id, "errors when converting");
-            }
-            File.Delete(bookFilePath);
-            if(newbookFilePath != null){
-            File.Delete(newbookFilePath);
-            File.Delete(bookFilePath+"pdf");}
+                string outp = "";
+                string newbookFilePath = null;
+                Regex rr = new Regex("failed: [1-9]+?");
+                try
+                {
+                    a.StartInfo.FileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"translator\fb2pdf.cmd");
+                    a.StartInfo.Arguments = $"\"{bookFilePath}\"";
+                    a.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
+                    a.StartInfo.RedirectStandardOutput = true;
+                    a.Start();
+                    outp = a.StandardOutput.ReadToEnd();
+                    a.WaitForExit();
+                    newbookFilePath = bookFilePath.Replace("fb2", "pdf");
+                    using (var fs = File.OpenRead(newbookFilePath))
+                    {
+                        await _client.SendDocumentAsync(message.Chat.Id, new Telegram.Bot.Types.InputFiles.InputOnlineFile(fs, rfn.Replace("fb2", "pdf")));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                if (rr.IsMatch(outp))
+                {
+                    await _client.SendTextMessageAsync(message.Chat.Id, "errors when converting");
+                }
+                File.Delete(bookFilePath);
+                if (newbookFilePath != null)
+                {
+                    File.Delete(newbookFilePath);
+                    File.Delete(bookFilePath + "pdf");
+                }
             }
             if (string.IsNullOrEmpty(message.Text)) return;
             Console.WriteLine($"[{message.Chat.Id} ({message.Chat.Title})] {message.From.Username}: {message.Text}");
@@ -287,11 +299,28 @@ namespace ZelyaDushitelBot
                     return;
                 }
             }
-            if(message.HasRegexIgnoreMention(BotMudroomRegex)){
+            if (message.HasRegexIgnoreMention(BotMudroomRegex))
+            {
                 await _client.SendTextMessageAsync(message.Chat.Id, "склад грязи");
                 return;
             }
-            if(message.HasRegexIgnoreMention(BotOpensourceRegex)){
+            if (message.HasRegexIgnoreMention(BotLetsSeeRegex))
+            {
+                lock (lockObject)
+                {
+                    if (letsSeeCooldown > 0)
+                    {
+                        letsSeeCooldown--;
+                        return;
+                    }
+                    letsSeeCooldown = 4;
+                }
+                await _client.SendTextMessageAsync(message.Chat.Id, "а там видно будет");
+
+                return;
+            }
+            if (message.HasRegexIgnoreMention(BotOpensourceRegex))
+            {
                 await _client.SendTextMessageAsync(message.Chat.Id, "https://github.com/eldarium/antizelyabot");
                 return;
             }
