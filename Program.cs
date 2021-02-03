@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -206,6 +207,17 @@ namespace ZelyaDushitelBot
             if (message.Text?.Equals("Я ПОПАЛА БЫ В РОШАНА", StringComparison.InvariantCultureIgnoreCase) ?? false)
             {
                 await _client.SendTextMessageAsync(message.Chat.Id, "С ЗАКРЫТЫМИ ГЛАЗАМИ");
+            }
+            if ((message.Text?.Equals("дождь из стрел?", StringComparison.InvariantCultureIgnoreCase) ?? false) ||
+            (message.Text?.Equals("дождь из стрел", StringComparison.InvariantCultureIgnoreCase) ?? false))
+            {
+                var origPhrase = "дОжДь Из сТрЕл???";
+                StringBuilder rainingArrowsSB = new StringBuilder();
+                foreach (var letter in origPhrase.Select(a=>a.ToString()))
+                {
+                    rainingArrowsSB.Append(new Random().Next(0,2) == 1 ? letter.ToUpper() :letter.ToLower());
+                }
+                await _client.SendTextMessageAsync(message.Chat.Id, rainingArrowsSB.ToString());
             }
             if (message.Text?.Equals("ну тут не поспоришь", StringComparison.InvariantCultureIgnoreCase) ?? false)
             {
