@@ -68,7 +68,8 @@ namespace ZelyaDushitelBot.Handlers
 
         private string TextWithoutMention(string str) => str != null ? string.Join(' ', str.Split(" ").Where(a => !a.StartsWith("@")).ToArray()) : str;
 
-        public bool HasRegexIgnoreMention(Regex regex) => CurrentMessage != null && MessageInLayouts.Any(a => regex.IsMatch(TextWithoutMention(a)));
+        public bool HasRegexIgnoreMention(Regex regex) => 
+        CurrentMessage != null && MessageInLayouts.Any(a => regex.IsMatch(TextWithoutMention(a)));
 
         private void PopulateLayouts()
         {

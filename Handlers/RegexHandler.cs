@@ -5,7 +5,8 @@ namespace ZelyaDushitelBot.Handlers
 {
     public class RegexHandler : BaseHandler
     {
-        protected virtual Regex NeededRegex { get; }
+        private Regex _regex = new Regex("(?!)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        protected virtual Regex NeededRegex => _regex;
         public override void Handle(MessageWrapper message, ITelegramBotClient client)
         {
             if (message.HasRegexIgnoreMention(NeededRegex))
