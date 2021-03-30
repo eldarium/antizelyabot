@@ -22,13 +22,13 @@ using Telegram.Bot.Types.Enums;
 using Reddit;
 using File = System.IO.File;
 using Reddit.Controllers;
+using ZelyaDushitelBot.Handlers;
 
 namespace ZelyaDushitelBot
 {
     class Program
     {
         static string Token = "";
-        static readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex YoutubeRegex = new Regex(@"youtu(?:\.be|be\.com)/(?:.*v(?:/|=)|(?:.*/)?)([a-zA-Z0-9-_]+)", RegexOptions.Compiled | RegexOptions.Multiline);
         static readonly Regex BotTranslateRegex = new Regex(@"^бот,?( сколько)?( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotWeatherRegex = new Regex(@"^(бот,? )?(какая )?погода в (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -154,57 +154,11 @@ namespace ZelyaDushitelBot
             public double? RateCross { get; set; }
         }
 
-        static async void GetExchangeRates(Message m)
-        {
-            List<(string, decimal, decimal)> values;
-            var rates = "";
-            try
-            {
-                values = await GetRatesValuesPrivat();
-            }
-            catch (Exception e)
-            {
-                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает приват курс! спасибо зеленский");
-                await _client.SendTextMessageAsync(new ChatId(91740825), e + "", disableNotification: true);
-                return;
-            }
-            if (values.Any())
-            {
-                for (var i = 0; i < values.Count; i++)
-                {
-                    rates += $"{values[i].Item1} (приват)\nПродажа {values[i].Item2}\nПокупка {values[i].Item3}";
-                    rates += "\n\n";
-                }
-            }
-            try
-            {
-                values = await GetRatesValuesMono();
-            }
-            catch (Exception e)
-            {
-                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает моно курс! спасибо зеленский");
-                await _client.SendTextMessageAsync(new ChatId(91740825), e + "", disableNotification: true);
-                return;
-            }
-            if (values.Any())
-            {
-                for (var i = 0; i < values.Count; i++)
-                {
-                    rates += $"{values[i].Item1} (моно)\nПродажа {values[i].Item2}\nПокупка {values[i].Item3}";
-                    rates += "\n\n";
-                }
-            }
-            if (rates != string.Empty)
-            {
-                await _client.SendTextMessageAsync(m.Chat.Id, rates, disableNotification: true);
-                return;
-            }
-            await _client.SendTextMessageAsync(m.Chat.Id, $"Еще нет курса на сегодня (наверное): статус ответа {_lastStatusCode}");
-
-        }
-
         static async void OnMessage(object sender, MessageEventArgs e)
         {
+            var rh = new RateHandler();
+            rh.Handle(new MessageWrapper(e.Message), _client);
+            /*
             var message = e.Message;
             if (message.HasCommand("/paporotnik"))
             {
@@ -315,8 +269,7 @@ namespace ZelyaDushitelBot
                 var index = new Random().Next(0, hotposts.Count);
                 var gotPost = hotposts[index];
                 if (gotPost.NSFW) {
-                    await _client.SendTextMessageAsync(message.Chat.Id, @"https://i.kym-cdn.com/entries/icons/facebook/000/022/047/Can't_show_that_in_a_Christian_manga.jpg");
-                    return;
+                    await _client.SendTextMessageAsync(message.Chat.Id, @"уберите от экрана женщин и детей, сейчас вылетит чья-то птичка");
                 }
                 var messageToSend = $"{gotPost.Title}\n\n{(gotPost.Listing.IsSelf ? ((SelfPost)gotPost).SelfText : ((LinkPost)gotPost).URL)}";
                 await _client.SendTextMessageAsync(message.Chat.Id, messageToSend);
@@ -358,11 +311,6 @@ namespace ZelyaDushitelBot
             if (message.HasRegexIgnoreMention(BotOpensourceRegex))
             {
                 await _client.SendTextMessageAsync(message.Chat.Id, "https://github.com/eldarium/antizelyabot");
-                return;
-            }
-            if (message.HasRegexIgnoreMention(RateRegex))
-            {
-                GetExchangeRates(message);
                 return;
             }
             if (message.HasRegexIgnoreMention(BotCalculateRegex))
@@ -468,7 +416,7 @@ namespace ZelyaDushitelBot
             }
             if (message.HasCommand("/command4"))
                 await _client.SendTextMessageAsync(message.Chat.Id,
-                    $"эта команда подкидывает маму зелика - результат {new Random().Next(0, 2) == 1}");
+                    $"эта команда подкидывает маму зелика - результат {new Random().Next(0, 2) == 1}");*/
         }
     }
 }
