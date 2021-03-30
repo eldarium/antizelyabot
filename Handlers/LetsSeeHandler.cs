@@ -3,31 +3,25 @@ using Telegram.Bot;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class LetsSeeHandler : BaseHandler
+    public class LetsSeeHandler : RegexHandler
     {
         private object lockObject = new object();
         private int letsSeeCooldown = 2;
-        static readonly Regex NeededRegex = new Regex(@"^(ну )?(посмотрим|поглядим|увидим|пожив[её]м(-| )увидим)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex regex = new Regex(@"^(ну )?(посмотрим|поглядим|увидим|пожив[её]м(-| )увидим)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        protected override Regex NeededRegex { get => regex; }
 
-        public async override void Handle(MessageWrapper message, ITelegramBotClient client)
+        protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
         {
-            if (message.HasRegexIgnoreMention(NeededRegex))
+            lock (lockObject)
             {
-                lock (lockObject)
+                if (letsSeeCooldown > 0)
                 {
-                    if (letsSeeCooldown > 0)
-                    {
-                        letsSeeCooldown--;
-                        return;
-                    }
-                    letsSeeCooldown = 2;
+                    letsSeeCooldown--;
+                    return;
                 }
-                await client.SendTextMessageAsync(message.Chat.Id, "а там видно будет");
+                letsSeeCooldown = 2;
             }
-            else
-            {
-                NextHandler?.Handle(message, client);
-            }
+            await client.SendTextMessageAsync(message.Chat.Id, "а там видно будет");
         }
     }
 }

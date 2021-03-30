@@ -3,19 +3,13 @@ using Telegram.Bot;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class MudroomHandler : BaseHandler
+    public class MudroomHandler : RegexHandler
     {
-        private readonly Regex NeededRegex = new Regex(@"^склад грязи$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public async override void Handle(MessageWrapper message, ITelegramBotClient client)
+        private readonly Regex regex = new Regex(@"^склад грязи$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        protected override Regex NeededRegex { get => regex; }
+        protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
         {
-            if (message.HasRegexIgnoreMention(NeededRegex))
-            {
-                await client.SendTextMessageAsync(message.Chat.Id, "склад грязи");
-            }
-            else
-            {
-                NextHandler?.Handle(message, client);
-            }
+            await client.SendTextMessageAsync(message.Chat.Id, "склад грязи");
         }
     }
 }

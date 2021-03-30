@@ -3,19 +3,13 @@ using Telegram.Bot;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class PaporotnikSmallHandler : BaseHandler
+    public class PaporotnikSmallHandler : RegexHandler
     {
-        private readonly Regex NeededRegex = new Regex(@"^ну тут не поспоришь$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public async override void Handle(MessageWrapper message, ITelegramBotClient client)
+        private readonly Regex regex = new Regex(@"^ну тут не поспоришь$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        protected override Regex NeededRegex { get => regex; }
+        protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
         {
-            if (message.HasRegexIgnoreMention(NeededRegex))
-            {
-                await client.SendTextMessageAsync(message.Chat.Id, "НУ ТУТ НЕ ПОСПОРИШЬ");
-            }
-            else
-            {
-                NextHandler?.Handle(message, client);
-            }
+            await client.SendTextMessageAsync(message.Chat.Id, "НУ ТУТ НЕ ПОСПОРИШЬ");
         }
     }
 }
