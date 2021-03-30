@@ -3,19 +3,13 @@ using Telegram.Bot;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class JuggerHandler : BaseHandler
+    public class JuggerHandler : RegexHandler
     {
-        private readonly Regex NeededRegex = new Regex(@"^джаг(г)?ер$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public async override void Handle(MessageWrapper message, ITelegramBotClient client)
+        private readonly Regex regex = new Regex(@"^джаг(г)?ер$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        protected override Regex NeededRegex { get => regex; }
+        protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
         {
-            if (message.HasRegexIgnoreMention(NeededRegex))
-            {
-                await client.SendTextMessageAsync(message.Chat.Id, "я джаггернаут, СУКА");
-            }
-            else
-            {
-                NextHandler?.Handle(message, client);
-            }
+            await client.SendTextMessageAsync(message.Chat.Id, "я джаггернаут, СУКА");
         }
     }
 }

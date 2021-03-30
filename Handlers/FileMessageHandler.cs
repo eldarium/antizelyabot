@@ -4,7 +4,6 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Telegram.Bot;
-using Telegram.Bot.Types.Enums;
 
 namespace ZelyaDushitelBot.Handlers
 {

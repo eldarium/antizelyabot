@@ -13,7 +13,7 @@ using Telegram.Bot.Types;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class RateHandler : BaseHandler
+    public class RateHandler : RegexHandler
     {
         private class MonoCurrencyInfo
         {
@@ -25,17 +25,11 @@ namespace ZelyaDushitelBot.Handlers
             public double? RateCross { get; set; }
         }
         private HttpStatusCode _lastStatusCode;
-        private readonly Regex RateRegex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public override void Handle(MessageWrapper message, ITelegramBotClient client)
+        private readonly Regex regex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        protected override Regex NeededRegex { get => regex; }
+        protected override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
         {
-            if (message.HasRegexIgnoreMention(RateRegex))
-            {
-                GetExchangeRates(message.OriginalMessage, client);
-            }
-            else
-            {
-                NextHandler?.Handle(message, client);
-            }
+            GetExchangeRates(message.OriginalMessage, client);
         }
 
         private async void GetExchangeRates(Message m, ITelegramBotClient _client)

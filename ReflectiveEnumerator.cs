@@ -7,7 +7,7 @@ public static class ReflectiveEnumerator
 {
     static ReflectiveEnumerator() { }
 
-    public static IEnumerable<T> GetEnumerableOfType<T>(params object[] constructorArgs) where T : class
+    public static List<T> GetListOfType<T>(params object[] constructorArgs) where T : class
     {
         List<T> objects = new List<T>();
         foreach (Type type in 

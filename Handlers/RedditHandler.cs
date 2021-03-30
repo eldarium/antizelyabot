@@ -8,10 +8,11 @@ using Telegram.Bot;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class RedditHandler : BaseHandler
+    public class RedditHandler : RegexHandler
     {
         private static RedditClient redditClient;
-        static readonly Regex NeededRegex = new Regex(@"реддит|reddit (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex regex = new Regex(@"реддит|reddit (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        protected override Regex NeededRegex { get => regex; }
         static RedditHandler()
         {
             var appid = File.ReadAllText(AppContext.BaseDirectory + "appid").Trim();
@@ -19,11 +20,8 @@ namespace ZelyaDushitelBot.Handlers
             var refreshtoken = File.ReadAllText(AppContext.BaseDirectory + "refreshtoken").Trim();
             redditClient = new RedditClient(appid, refreshtoken, appsecret, userAgent: "CSharp:EldariumScript v.1.0.0 by /u/eldarium");
         }
-        public async override void Handle(MessageWrapper message, ITelegramBotClient _client)
+        protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient _client)
         {
-
-            if (message.HasRegexIgnoreMention(NeededRegex))
-            {
                 try
                 {
                     var subReddit = message.CurrentMessage.Split(' ').Last();
@@ -42,11 +40,6 @@ namespace ZelyaDushitelBot.Handlers
                 {
                     Console.WriteLine(ex.Message);
                 }
-            }
-            else
-            {
-                NextHandler?.Handle(message, _client);
-            }
         }
     }
 }

@@ -5,30 +5,24 @@ using Telegram.Bot;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class ForecastHandler : BaseHandler
+    public class ForecastHandler : RegexHandler
     {
-        static readonly Regex BotForecastRegex = new Regex(@"^бот,? ?прогноз (.+?)$");
-        public async override void Handle(MessageWrapper message, ITelegramBotClient client)
+        private readonly Regex regex = new Regex(@"^бот,? ?прогноз (.+?)$");
+        protected override Regex NeededRegex { get => regex; }
+        protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
         {
-            if (message.HasRegexIgnoreMention(BotForecastRegex))
+            var we = new WeatherWorker();
+            var mm = NeededRegex.Match(message.CurrentMessage);
+            if (!mm.Success)
+                mm = NeededRegex.Match(message.MessageInLayouts[1]);
+            var m = mm.Groups.Last();
+            if (m.Value.Contains("киев", StringComparison.InvariantCultureIgnoreCase))
             {
-                var we = new WeatherWorker();
-                var mm = BotForecastRegex.Match(message.CurrentMessage);
-                if (!mm.Success)
-                    mm = BotForecastRegex.Match(message.MessageInLayouts[1]);
-                var m = mm.Groups.Last();
-                if (m.Value.Contains("киев", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    await client.SendTextMessageAsync(message.Chat.Id, we.GetForecast("kyiv"));
-                }
-                if (m.Value.Contains("днепр", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    await client.SendTextMessageAsync(message.Chat.Id, we.GetForecast("dnipro"));
-                }
+                await client.SendTextMessageAsync(message.Chat.Id, we.GetForecast("kyiv"));
             }
-            else
+            if (m.Value.Contains("днепр", StringComparison.InvariantCultureIgnoreCase))
             {
-                NextHandler?.Handle(message, client);
+                await client.SendTextMessageAsync(message.Chat.Id, we.GetForecast("dnipro"));
             }
         }
     }
