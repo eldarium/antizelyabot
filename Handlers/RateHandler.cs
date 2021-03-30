@@ -34,7 +34,7 @@ namespace ZelyaDushitelBot.Handlers
             }
             else
             {
-                NextHandler.Handle(message, client);
+                NextHandler?.Handle(message, client);
             }
         }
 
@@ -84,7 +84,7 @@ namespace ZelyaDushitelBot.Handlers
             await _client.SendTextMessageAsync(m.Chat.Id, $"Еще нет курса на сегодня (наверное): статус ответа {_lastStatusCode}");
         }
 
-        private async Task<List<(string, decimal, decimal)>> GetRatesValuesPrivat()
+        protected async Task<List<(string, decimal, decimal)>> GetRatesValuesPrivat()
         {
             var client = new HttpClient();
             var list = new List<(string, decimal, decimal)>();

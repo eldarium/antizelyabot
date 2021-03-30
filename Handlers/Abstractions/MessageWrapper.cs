@@ -13,6 +13,12 @@ namespace ZelyaDushitelBot.Handlers
         private static string _ruLayout = @"ёйцукенгшщзхъфывапролджэячсмитьбю,.";
         private string currentMessage;
         public Message OriginalMessage { get; set; }
+        public Chat Chat { get => OriginalMessage?.Chat; }
+        public MessageType Type { get => OriginalMessage?.Type ?? MessageType.Unknown; }
+        public Sticker Sticker { get => OriginalMessage?.Sticker; }
+        public User From { get => OriginalMessage.From; }
+        public int MessageId { get => OriginalMessage.MessageId; }
+        public Document Document { get => OriginalMessage.Document; }
         public string CurrentMessage
         {
             get => currentMessage;
@@ -60,7 +66,7 @@ namespace ZelyaDushitelBot.Handlers
             TextWithoutMention(CurrentMessage) :
             null;
 
-        private string TextWithoutMention(string str) => string.Join(' ', str.Split(" ").Where(a => !a.StartsWith("@")).ToArray());
+        private string TextWithoutMention(string str) => str != null ? string.Join(' ', str.Split(" ").Where(a => !a.StartsWith("@")).ToArray()) : str;
 
         public bool HasRegexIgnoreMention(Regex regex) => CurrentMessage != null && MessageInLayouts.Any(a => regex.IsMatch(TextWithoutMention(a)));
 
@@ -85,6 +91,7 @@ namespace ZelyaDushitelBot.Handlers
                 _engLayout.ElementAt(_ruLayout.IndexOf(mchar)));
             }
             rv[1] = sb.ToString();
+            MessageInLayouts = rv;
         }
     }
 }
