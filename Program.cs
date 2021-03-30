@@ -19,8 +19,9 @@ using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using YoutubeExplode;
+using Reddit;
 using File = System.IO.File;
+using Reddit.Controllers;
 
 namespace ZelyaDushitelBot
 {
@@ -36,8 +37,10 @@ namespace ZelyaDushitelBot
         static readonly Regex BotCalculateRegex = new Regex(@"^(бот,? )?посчитай (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotConvertRegex = new Regex(@"^(бот,? )?конв(ертируй)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotMudroomRegex = new Regex(@"^склад грязи$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        static readonly Regex BotOpensourceRegex = new Regex(@"^open(-)source|oss|опенсурс|опенсорс$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotOpensourceRegex = new Regex(@"^(open(-)source|oss|опенсурс|опенсорс)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         static readonly Regex BotLetsSeeRegex = new Regex(@"^(ну )?(посмотрим|поглядим|увидим|пожив[её]м(-| )увидим)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static readonly Regex BotRedditRegex = new Regex(@"реддит|reddit (.+?)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static RedditClient redditClient;
         static int letsSeeCooldown = 0;
         static object lockObject = new object();
         static readonly string[] Stickers = {"CAADAgADBAAD9SbqFq83NbkmenTRFgQ",
@@ -50,6 +53,10 @@ namespace ZelyaDushitelBot
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.WriteLine("Hello World!");
             Token = File.ReadAllText(AppContext.BaseDirectory + "token").Trim();
+            var appid = File.ReadAllText(AppContext.BaseDirectory + "appid").Trim();
+            var appsecret = File.ReadAllText(AppContext.BaseDirectory + "appsecret").Trim();
+            var refreshtoken = File.ReadAllText(AppContext.BaseDirectory + "refreshtoken").Trim();
+            redditClient = new RedditClient(appid, refreshtoken, appsecret,userAgent:"CSharp:EldariumScript v.1.0.0 by /u/eldarium");
             _client = new TelegramBotClient(Token);
             _client.OnMessage += OnMessage;
             _client.OnMessageEdited += OnMessage;// OnMessageEdited;
@@ -301,6 +308,23 @@ namespace ZelyaDushitelBot
                 }
             }
             if (string.IsNullOrEmpty(message.Text)) return;
+            if(message.HasRegexIgnoreMention(BotRedditRegex)) {
+                try {
+                var subReddit = message.Text.Split(' ').Last();
+                var hotposts = redditClient.Subreddit(subReddit).Posts.GetHot();
+                var index = new Random().Next(0, hotposts.Count);
+                var gotPost = hotposts[index];
+                if (gotPost.NSFW) {
+                    await _client.SendTextMessageAsync(message.Chat.Id, @"https://i.kym-cdn.com/entries/icons/facebook/000/022/047/Can't_show_that_in_a_Christian_manga.jpg");
+                    return;
+                }
+                var messageToSend = $"{gotPost.Title}\n\n{(gotPost.Listing.IsSelf ? ((SelfPost)gotPost).SelfText : ((LinkPost)gotPost).URL)}";
+                await _client.SendTextMessageAsync(message.Chat.Id, messageToSend);
+                return;
+                } catch (Exception ex) {
+                    Console.WriteLine(ex.Message);
+                }
+            }
             Console.WriteLine($"[{message.Chat.Id} ({message.Chat.Title})] {message.From.Username}: {message.Text}");
             if (message.HasAuthor("alexvojander"))
             {
@@ -325,7 +349,7 @@ namespace ZelyaDushitelBot
                         letsSeeCooldown--;
                         return;
                     }
-                    letsSeeCooldown = 4;
+                    letsSeeCooldown = 2;
                 }
                 await _client.SendTextMessageAsync(message.Chat.Id, "а там видно будет");
 
