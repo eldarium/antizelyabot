@@ -3,10 +3,9 @@ using Telegram.Bot;
 
 namespace ZelyaDushitelBot.Handlers
 {
-    public class RegexHandler : BaseHandler
+    public abstract class RegexHandler : BaseHandler
     {
-        private Regex _regex = new Regex("(?!)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        protected virtual Regex NeededRegex => _regex;
+        protected abstract Regex NeededRegex { get; }
         public override void Handle(MessageWrapper message, ITelegramBotClient client)
         {
             if (message.HasRegexIgnoreMention(NeededRegex))
@@ -18,8 +17,6 @@ namespace ZelyaDushitelBot.Handlers
                 NextHandler?.Handle(message, client);
             }
         }
-        protected virtual void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
-        {
-        }
+        protected abstract void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client);
     }
 }
