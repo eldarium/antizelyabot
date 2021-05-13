@@ -23,8 +23,12 @@ namespace ZelyaDushitelBot.Handlers
             }
             else
             {
-                using (var fs = new StreamWriter(File.Create(regexesPath))) {
-                    fs.WriteLine(JsonConvert.SerializeObject(new [] { new DynamicRegexInfo() { Regex = new Regex("^example$"), Reaction = "example" }}));
+                using (var fs = new StreamWriter(File.Create(regexesPath)))
+                {
+                    DynamicRegexInfos = new[] {
+                        new DynamicRegexInfo() { Regex = new Regex("^example$", RegexOptions.IgnoreCase), Reaction = "example" }
+                        };
+                    fs.WriteLine(JsonConvert.SerializeObject(DynamicRegexInfos));
                 }
                 Console.WriteLine($"Initialized 0 regexes");
             }
@@ -49,7 +53,7 @@ namespace ZelyaDushitelBot.Handlers
                 RefreshRegexes();
                 await client.SendTextMessageAsync(message.Chat, "refreshed");
             }
-            else if ((DynamicRegexInfos.FirstOrDefault(r => message.HasRegex(r.Regex)) is DynamicRegexInfo foundRegexInfo))
+            else if ((DynamicRegexInfos.Skip(1).FirstOrDefault(r => message.HasRegex(r.Regex)) is DynamicRegexInfo foundRegexInfo))
             {
                 await client.SendTextMessageAsync(message.Chat, foundRegexInfo.Reaction);
                 return;
