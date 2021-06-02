@@ -4,13 +4,15 @@ using System.Text.RegularExpressions;
 using Telegram.Bot;
 using System.Linq;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 namespace ZelyaDushitelBot.Handlers
 {
     public class DynamicRegexHandler : BaseHandler
     {
         private DynamicRegexInfo[] DynamicRegexInfos { get; set; }
-        private static Regex RefreshRegex = new Regex("refresh regexes", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex RefreshRegex = new Regex("^refresh regexes$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static Regex ListRegexesRegex = new Regex("^list regexes$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public DynamicRegexHandler()
         {
@@ -46,12 +48,27 @@ namespace ZelyaDushitelBot.Handlers
             }
         }
 
+        private async Task ListRegexes(long chatId, ITelegramBotClient client) {
+            if(DynamicRegexInfos.Length == 1) {
+                await client.SendTextMessageAsync(chatId, "No regexes loaded");
+                return;
+            }
+            foreach (var reg in DynamicRegexInfos.Skip(1))
+            {
+                await client.SendTextMessageAsync(chatId, $"Regex {reg.Regex.ToString()} with reaction {reg.Reaction}");
+            }
+        }
+
         public override async void Handle(MessageWrapper message, ITelegramBotClient client)
         {
             if (message.HasAuthor("daneldarium") && message.HasRegex(RefreshRegex))
             {
                 RefreshRegexes();
                 await client.SendTextMessageAsync(message.Chat, "refreshed");
+            }
+            else if(message.HasAuthor("daneldarium") && message.HasRegex(ListRegexesRegex))
+            {
+                await ListRegexes(message.Chat.Id, client);
             }
             else if ((DynamicRegexInfos.Skip(1).FirstOrDefault(r => message.HasRegex(r.Regex)) is DynamicRegexInfo foundRegexInfo))
             {
