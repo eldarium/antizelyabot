@@ -7,7 +7,6 @@ namespace ZelyaDushitelBot.Handlers
 {
     public class ShittyStickerHandler : BaseHandler
     {
-        private readonly Regex NeededRegex = new Regex(@"^джаг(г)?ер$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public async override void Handle(MessageWrapper message, ITelegramBotClient client)
         {
             if (message.Type == MessageType.Sticker && message.Sticker != null)
