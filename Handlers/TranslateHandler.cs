@@ -8,7 +8,7 @@ namespace ZelyaDushitelBot.Handlers
 {
     public class TranslateHandler : RateHandler
     {
-        private readonly Regex regex = new Regex(@"^бот,?( сколько)?( сейчас)?( будет)? (.+?) (доллар|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex regex = new Regex(@"^бот,?( сколько)?( сейчас)?( будет)? (.+?) (дол|бакс|гр|евр|бит)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         protected override Regex NeededRegex => regex;
         protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient _client)
         {
@@ -25,7 +25,7 @@ namespace ZelyaDushitelBot.Handlers
             }
             try
             {
-                if (match.Groups[5].Value.Equals("доллар", StringComparison.InvariantCultureIgnoreCase) ||
+                if (match.Groups[5].Value.Equals("дол", StringComparison.InvariantCultureIgnoreCase) ||
                 match.Groups[5].Value.Equals("бакс", StringComparison.InvariantCultureIgnoreCase))
                 {
                     var (_, item2, item3) = values.First(v => v.Item1.Equals("USD", StringComparison.InvariantCultureIgnoreCase));

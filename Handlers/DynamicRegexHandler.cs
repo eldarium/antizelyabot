@@ -53,10 +53,8 @@ namespace ZelyaDushitelBot.Handlers
                 await client.SendTextMessageAsync(chatId, "No regexes loaded");
                 return;
             }
-            foreach (var reg in DynamicRegexInfos.Skip(1))
-            {
-                await client.SendTextMessageAsync(chatId, $"Regex {reg.Regex.ToString()} with reaction {reg.Reaction}");
-            }
+            var allRegexesList = string.Join("\n", DynamicRegexInfos.Skip(1).Select(reg=>$"Regex {reg.Regex.ToString()} with reaction {reg.Reaction}"));
+            await client.SendTextMessageAsync(chatId, allRegexesList);
         }
 
         public override async void Handle(MessageWrapper message, ITelegramBotClient client)
