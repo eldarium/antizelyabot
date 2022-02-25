@@ -42,7 +42,7 @@ namespace ZelyaDushitelBot.Handlers
             }
             catch (Exception e)
             {
-                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает приват курс! спасибо зеленский");
+                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает приват курс! спасибо путлер");
                 await _client.SendTextMessageAsync(new ChatId(91740825), e + "", disableNotification: true);
             }
             if (values.Any())
@@ -59,7 +59,7 @@ namespace ZelyaDushitelBot.Handlers
             }
             catch (Exception e)
             {
-                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает моно курс! спасибо зеленский");
+                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает моно курс! спасибо путлер");
                 await _client.SendTextMessageAsync(new ChatId(91740825), e + "", disableNotification: true);
             }
             if (values.Any())
