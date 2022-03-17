@@ -10,12 +10,18 @@ namespace ZelyaDushitelBot.Handlers
 {
     public class DynamicRegexHandler : BaseHandler
     {
+        private static FileSystemWatcher RegexFileWatcher;
         private DynamicRegexInfo[] DynamicRegexInfos { get; set; }
         private static Regex RefreshRegex = new Regex("^refresh regexes$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static Regex ListRegexesRegex = new Regex("^list regexes$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public DynamicRegexHandler()
         {
+            RegexFileWatcher = new FileSystemWatcher
+            {
+                Filter = "regexes",
+                Path = AppContext.BaseDirectory,
+            };
             var regexesPath = Path.Combine(AppContext.BaseDirectory, "regexes");
             if (File.Exists(regexesPath))
             {
@@ -34,6 +40,15 @@ namespace ZelyaDushitelBot.Handlers
                 }
                 Console.WriteLine($"Initialized 0 regexes");
             }
+            RegexFileWatcher.Changed += OnChanged;
+            RegexFileWatcher.EnableRaisingEvents = true;
+        }
+
+        private void OnChanged(object sender, FileSystemEventArgs e)
+        {
+            if (e.ChangeType != WatcherChangeTypes.Changed)
+                return;
+            RefreshRegexes();
         }
 
         private void RefreshRegexes()
@@ -43,17 +58,26 @@ namespace ZelyaDushitelBot.Handlers
             {
                 var rawStr = File.ReadAllText(regexesPath);
                 var oldCount = DynamicRegexInfos.Count();
-                DynamicRegexInfos = JsonConvert.DeserializeObject<DynamicRegexInfo[]>(rawStr);
-                Console.WriteLine($"Refreshed {DynamicRegexInfos.Count() - oldCount} regexes");
+                try
+                {
+                    DynamicRegexInfos = JsonConvert.DeserializeObject<DynamicRegexInfo[]>(rawStr);
+                    Console.WriteLine($"Refreshed {DynamicRegexInfos.Count() - oldCount} regexes");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Could not refresh regexes: {0}", e.Message);
+                }
             }
         }
 
-        private async Task ListRegexes(long chatId, ITelegramBotClient client) {
-            if(DynamicRegexInfos.Length == 1) {
+        private async Task ListRegexes(long chatId, ITelegramBotClient client)
+        {
+            if (DynamicRegexInfos.Length == 1)
+            {
                 await client.SendTextMessageAsync(chatId, "No regexes loaded");
                 return;
             }
-            var allRegexesList = string.Join("\n", DynamicRegexInfos.Skip(1).Select(reg=>$"Regex {reg.Regex.ToString()} with reaction {reg.Reaction}"));
+            var allRegexesList = string.Join("\n", DynamicRegexInfos.Skip(1).Select(reg => $"Regex {reg.Regex.ToString()} with reaction {reg.Reaction}"));
             await client.SendTextMessageAsync(chatId, allRegexesList);
         }
 
@@ -64,7 +88,7 @@ namespace ZelyaDushitelBot.Handlers
                 RefreshRegexes();
                 await client.SendTextMessageAsync(message.Chat, "refreshed");
             }
-            else if(message.HasAuthor("daneldarium") && message.HasRegex(ListRegexesRegex))
+            else if (message.HasAuthor("daneldarium") && message.HasRegex(ListRegexesRegex))
             {
                 await ListRegexes(message.Chat.Id, client);
             }
