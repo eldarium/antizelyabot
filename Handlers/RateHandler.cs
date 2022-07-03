@@ -70,6 +70,19 @@ namespace ZelyaDushitelBot.Handlers
                     rates += "\n\n";
                 }
             }
+            decimal bananRate = -1;
+            try
+            {
+                bananRate = await GetRateBanan();
+            }
+            catch (Exception e)
+            {
+                await _client.SendTextMessageAsync(m.Chat.Id, $"не возвращает банан курс! спасибо маск");
+                await _client.SendTextMessageAsync(new ChatId(91740825), e + "", disableNotification: true);
+            } 
+            if (bananRate > 0) {
+                rates += $"Курс банана (USDTUAH): {bananRate}";
+            }
             if (rates != string.Empty)
             {
                 await _client.SendTextMessageAsync(m.Chat.Id, rates, disableNotification: true);
@@ -146,6 +159,32 @@ namespace ZelyaDushitelBot.Handlers
                 _lastStatusCode = v.StatusCode;
             }
             return list;
+        }
+        
+        private async Task<decimal> GetRateBanan() {
+            var client = new HttpClient();
+            client.BaseAddress = new Uri("https://api.binance.com/api/v3/avgPrice?symbol=USDTUAH");
+            HttpResponseMessage v;
+            try
+            {
+                v = await client.GetAsync("");
+            }
+            catch
+            {
+                throw;
+            }
+            if (v.IsSuccessStatusCode)
+            {
+                var p = await v.Content.ReadAsStringAsync();
+                var rate2 = new {mins = -1,price = 0M};
+                var rate = JsonConvert.DeserializeAnonymousType(p, rate2);
+                return rate.price;
+            }
+            else
+            {
+                _lastStatusCode = v.StatusCode;
+            }
+            return -1;
         }
     }
 }
