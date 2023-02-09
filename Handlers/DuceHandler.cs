@@ -13,7 +13,7 @@ namespace ZelyaDushitelBot.Handlers
         protected override Regex NeededRegex => new Regex("^дуче$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient client)
         {
-            await client.(message.Chat.Id,
+            await client.SendDocumentAsync(message.Chat.Id,
              new InputOnlineFile("CgACAgIAAx0CVP-Q_wACyIRj5XTOk0bXH-z5dCZPZyHQDLnuqgACviMAAhi4iEj-MvvAkeudri4E"));
         }
     }
