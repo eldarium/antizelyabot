@@ -38,7 +38,8 @@ namespace ZelyaDushitelBot.Handlers
             var rates = "";
             try
             {
-                values = await GetRatesValuesPrivat();
+                // TODO fix
+                //values = await GetRatesValuesPrivat();
             }
             catch (Exception e)
             {
