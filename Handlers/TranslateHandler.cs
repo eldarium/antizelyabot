@@ -12,7 +12,7 @@ namespace ZelyaDushitelBot.Handlers
         protected override Regex NeededRegex => regex;
         protected async override void ConcreteRegexHandler(MessageWrapper message, ITelegramBotClient _client)
         {
-            var values = await GetRatesValuesPrivat();
+            var values = await GetRatesValuesMono();
             var match = NeededRegex.Match(message.CurrentMessage);
             if (!match.Success)
                 match = NeededRegex.Match(message.MessageInLayouts[1]);
@@ -51,6 +51,10 @@ namespace ZelyaDushitelBot.Handlers
             catch (OverflowException)
             {
                 await _client.SendTextMessageAsync(message.Chat.Id, "не балуйся");
+            }
+            catch (Exception exception) {
+                await _client.SendTextMessageAsync(message.Chat.Id, "что то пошло не так - попробуй снова");
+                await _client.SendTextMessageAsync(91740825, $"ошибка из перевода денег - {exception}", disableNotification: true);
             }
         }
     }

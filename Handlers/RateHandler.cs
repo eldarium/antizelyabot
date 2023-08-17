@@ -24,6 +24,16 @@ namespace ZelyaDushitelBot.Handlers
             public double? RateBuy { get; set; }
             public double? RateCross { get; set; }
         }
+        // Root myDeserializedClass = JsonConvert.DeserializeObject<List<Root>>(myJsonResponse);
+    public class PrivatCurrencyInfo
+    {
+        public string ccy { get; set; }
+        public string base_ccy { get; set; }
+        public string buy { get; set; }
+        public string sale { get; set; }
+    }
+
+
         private HttpStatusCode _lastStatusCode;
         private readonly Regex regex = new Regex(@"^(ч(е|ё) с курсом|курс|rehc)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         protected override Regex NeededRegex { get => regex; }
@@ -39,7 +49,7 @@ namespace ZelyaDushitelBot.Handlers
             try
             {
                 // TODO fix
-                //values = await GetRatesValuesPrivat();
+                values = await GetRatesValuesPrivat();
             }
             catch (Exception e)
             {
@@ -109,16 +119,12 @@ namespace ZelyaDushitelBot.Handlers
             if (v.IsSuccessStatusCode)
             {
                 var p = await v.Content.ReadAsStringAsync();
-                var doc = new XmlDocument();
-                doc.LoadXml(p);
-                var xpath = "exchangerates/row/exchangerate";
-                var nodex = doc.SelectNodes(xpath);
-                for (var i = 0; i < nodex.Count; i++)
+                var rates = JsonConvert.DeserializeObject<PrivatCurrencyInfo[]>(p);
+                for (var i = 0; i < rates.Length; i++)
                 {
-                    if (nodex[i].Attributes["ccy"] == null || nodex[i].Attributes["ccy"].Value == "RUR") continue;
-                    list.Add((nodex[i].Attributes["ccy"].Value,
-                    Math.Round(decimal.Parse(nodex[i].Attributes["buy"].Value, new CultureInfo("us-US")), decimals: 3),
-                    Math.Round(decimal.Parse(nodex[i].Attributes["sale"].Value, new CultureInfo("us-US")), decimals: 3)));
+                    list.Add((rates[i].ccy,
+                    Math.Round(decimal.Parse(rates[i].buy, new CultureInfo("us-US")), decimals: 3),
+                    Math.Round(decimal.Parse(rates[i].sale, new CultureInfo("us-US")), decimals: 3)));
                 }
             }
             else
@@ -128,7 +134,7 @@ namespace ZelyaDushitelBot.Handlers
             return list;
         }
 
-        private async Task<List<(string, decimal, decimal)>> GetRatesValuesMono()
+        protected async Task<List<(string, decimal, decimal)>> GetRatesValuesMono()
         {
             var client = new HttpClient();
             var list = new List<(string, decimal, decimal)>();
